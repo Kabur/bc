@@ -4,12 +4,14 @@ import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import gc
 import numpy as np
+from matplotlib import style
 import matplotlib.pyplot as plt
 import pandas
 import math
 from keras.layers.core import Dense, Activation
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
+from keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from sklearn.utils import check_array
@@ -57,7 +59,7 @@ def load_data(filename, window_size, train_ratio):
 
 def createModel(trainX, trainY, epochs, batchSize=1):
     model = Sequential()
-    # model.add(LSTM(4, batch_input_shape=(batchSize, timesteps, 1), stateful=True, return_sequences=True))
+    model.add(LSTM(4, batch_input_shape=(batchSize, timesteps, 1), stateful=True, return_sequences=True))
     model.add(LSTM(4, batch_input_shape=(batchSize, timesteps, 1), stateful=True))
     model.add(Dense(1))
     model.compile(loss='mean_squared_error', optimizer='adam')
@@ -72,19 +74,19 @@ def createModel(trainX, trainY, epochs, batchSize=1):
     return model
 
 
-def predictOneByOne(model, data, predictionLen):
-    predictions = []
-
-    for timestep in range(int(len(data)) - predictionLen):
-        prediction = []
-        for j in range(predictionLen):
-            print(data[timestep][0][0])
-            number = model.predict(data[timestep][0][0])  # needs a 3-dimensional array here
-            prediction.append(number)
-
-        predictions.append(prediction)
-
-    return predictions
+# def predictOneByOne(model, data, predictionLen):
+#     predictions = []
+#
+#     for timestep in range(int(len(data)) - predictionLen):
+#         prediction = []
+#         for j in range(predictionLen):
+#             print(data[timestep][0][0])
+#             number = model.predict(data[timestep][0][0])  # needs a 3-dimensional array here
+#             prediction.append(number)
+#
+#         predictions.append(prediction)
+#
+#     return predictions
 
 
 def predictMultiple(model, data, timesteps, predictionLength, batchSize, reset=0):
@@ -119,23 +121,39 @@ def calculateMAPE(prediction, y):
     return np.mean(np.abs((y - prediction) / y)) * 100
 
 
+def plot_results(prediction, truth):
+    fig = plt.figure()
+
+    ax = fig.add_subplot(111)
+    ax.plot(truth, label='True Data')
+    plt.plot(prediction, label='Prediction')
+    plt.legend()
+    plt.show()
+
+
 if __name__ == '__main__':
     np.random.seed(7)
-    epochs = 2
+    epochs = 5
     timesteps = 3
     train_ratio = 0.67
     batchSize = 1
     day = 96
     week = day * 7
 
-    # dataset, trainX, trainY, testX, testY = load_data('sample_energodata_aggregated.csv', timesteps, train_ratio)
-    dataset, trainX, trainY, testX, testY = load_data('bigger_sample.csv', timesteps, train_ratio)
-    # dataset, trainX, trainY, testX, testY = load_data('01_zilina_suma.csv', timesteps, train_ratio)
-    model = createModel(trainX, trainY, epochs, batchSize)
+    # dataset, trainX, trainY, testX, testY = load_data('smaller_sample.csv', timesteps, train_ratio)
+    # dataset, trainX, trainY, testX, testY = load_data('bigger_sample.csv', timesteps, train_ratio)
+    dataset, trainX, trainY, testX, testY = load_data('01_zilina_suma.csv', timesteps, train_ratio)
+    # model = createModel(trainX, trainY, epochs, batchSize)
+
+    ''' SAVE & LOAD '''
+    # model.save('model.h5', True)
+    model = load_model('model.h5')
+    print("Model Loaded!")
 
     # predict
     testPredict = model.predict(testX, batch_size=batchSize)
     model.reset_states()
+
     testMultiple = predictMultiple(model, testX, timesteps, 3, batchSize)
 
     # invert predictions
@@ -143,17 +161,30 @@ if __name__ == '__main__':
     testY = scaler.inverse_transform([testY])
     testMultiple = scaler.inverse_transform([testMultiple])
 
+    print("TEST PREDICT:")
+    print(testPredict)
     print("MULTIPLE PREDICTION:")
     print(testMultiple)
     print("testY:")
     print(testY)
+    print("testPredict[:, 0]")
+    print(testPredict[:, 0])
+
+    print("testPredict len: ", len(testPredict))
+    print("testMultiple[0] len: ", len(testMultiple[0]))
+    print("testY[0] len: ", len(testY[0]))
 
     scoreSingle = math.sqrt(mean_squared_error(testY[0], testPredict[:, 0]))
     print('scoreSingle: %.2f RMSE' % (scoreSingle))
+
     scoreSingleMAPE = calculateMAPE(testPredict[:, 0], testY[0])
     print("scoreSingleMAPE: %.2f MAPE" % (scoreSingleMAPE))
-    scoreMultipleMAPE = calculateMAPE(testMultiple, testY[0])
-    print("scoreMultipleMAPE: %.2f MAPE" % (scoreMultipleMAPE))
 
+    try:
+        scoreMultipleMAPE = calculateMAPE(np.append(testMultiple[0], testY[0][-1]), testY[0])
+        print("scoreMultipleMAPE: %.2f MAPE" % (scoreMultipleMAPE))
+        plot_results(np.append(testMultiple[0], testY[0][-1]), testY[0])
+    except ValueError as e:
+        print(e)
 
     gc.collect()

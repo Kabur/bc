@@ -148,7 +148,7 @@ if __name__ == '__main__':
     prediction_len = 3
 
     # Load the data
-    # trainX, trainY, testX, testY = load_data('sample_energodata_aggregated.csv', window_size, 0.66)
+    # trainX, trainY, testX, testY = load_data('smaller_sample.csv', window_size, 0.66)
     trainX, trainY, testX, testY = load_data('sinewave_sample.csv', window_size, 0.66)
     # trainX, trainY, testX, testY = load_data('sp500.csv', window_size, 0.66)
 
