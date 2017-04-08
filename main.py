@@ -112,8 +112,23 @@ def predictMultiple(model, data, timesteps, predictionLength, batchSize, reset=0
 
     result = np.array(result)
     result = result.flatten()
-    print("FLATTENED RESULT YO:")
-    print(result)
+    # print("multiple result")
+    # print(result)
+    return result
+
+
+def predictSingle(model, data, timesteps, batch_size=1):
+    # states are reset automatically after batch_size
+    result = []
+    print(data.shape)
+    for i in range(int(len(data))):
+        curr_window = data[i]
+        prediction = model.predict(curr_window[np.newaxis, :, :], batch_size=batch_size)
+        result.append(prediction)
+
+    result = np.array(result).flatten()
+    # print("single result")
+    # print(result)
     return result
 
 
@@ -133,17 +148,25 @@ def plot_results(prediction, truth):
 
 if __name__ == '__main__':
     np.random.seed(7)
-    epochs = 5
-    timesteps = 3
     train_ratio = 0.67
-    batchSize = 1
     day = 96
     week = day * 7
+    # testing parameters
+    epochs = 1
+    timesteps = 3
+    batchSize = 1
+    # true parameters
+    # epochs = 5
+    # timesteps = day
+    # batchSize =
 
     # dataset, trainX, trainY, testX, testY = load_data('smaller_sample.csv', timesteps, train_ratio)
-    # dataset, trainX, trainY, testX, testY = load_data('bigger_sample.csv', timesteps, train_ratio)
-    dataset, trainX, trainY, testX, testY = load_data('01_zilina_suma.csv', timesteps, train_ratio)
+    dataset, trainX, trainY, testX, testY = load_data('bigger_sample.csv', timesteps, train_ratio)
+    # dataset, trainX, trainY, testX, testY = load_data('01_zilina_suma.csv', timesteps, train_ratio)
     # model = createModel(trainX, trainY, epochs, batchSize)
+    print(testX)
+    print("**********")
+    print(testY)
 
     ''' SAVE & LOAD '''
     # model.save('model.h5', True)
@@ -151,40 +174,55 @@ if __name__ == '__main__':
     print("Model Loaded!")
 
     # predict
-    testPredict = model.predict(testX, batch_size=batchSize)
     model.reset_states()
-
-    testMultiple = predictMultiple(model, testX, timesteps, 3, batchSize)
+    prediction_single_keras = model.predict(testX, batch_size=batchSize)
+    model.reset_states()
+    prediction_multiple = predictMultiple(model, testX, timesteps, 3, batchSize)
+    model.reset_states()
+    prediction_single = predictSingle(model, testX, timesteps, batchSize)
 
     # invert predictions
-    testPredict = scaler.inverse_transform(testPredict)
+    prediction_single_keras = scaler.inverse_transform(prediction_single_keras)
+    prediction_single = scaler.inverse_transform([prediction_single])
     testY = scaler.inverse_transform([testY])
-    testMultiple = scaler.inverse_transform([testMultiple])
+    prediction_multiple = scaler.inverse_transform([prediction_multiple])
+    print("Predictions done!")
+    # print("TEST PREDICT:")
+    # print(testPredict)
+    # print("MULTIPLE PREDICTION:")
+    # print(testMultiple)
+    # print("testY:")
+    # print(testY)
+    # print("testPredict[:, 0]")
+    # print(testPredict[:, 0])
 
-    print("TEST PREDICT:")
-    print(testPredict)
-    print("MULTIPLE PREDICTION:")
-    print(testMultiple)
-    print("testY:")
+    # print("testPredict len: ", len(testPredict))
+    # print("testMultiple[0] len: ", len(testMultiple[0]))
+    # print("testY[0] len: ", len(testY[0]))
+
+    print("single keras..", len(prediction_single_keras))
+    print(prediction_single_keras)
+    print("single custom..", len(prediction_single))
+    print(prediction_single)
+    print("multiple..", len(prediction_multiple))
+    print(prediction_multiple)
+    print("testY.. ", len(testY))
     print(testY)
-    print("testPredict[:, 0]")
-    print(testPredict[:, 0])
+    exit()
 
-    print("testPredict len: ", len(testPredict))
-    print("testMultiple[0] len: ", len(testMultiple[0]))
-    print("testY[0] len: ", len(testY[0]))
-
-    scoreSingle = math.sqrt(mean_squared_error(testY[0], testPredict[:, 0]))
+    scoreSingle = math.sqrt(mean_squared_error(testY[0], prediction_single_keras[:, 0]))
     print('scoreSingle: %.2f RMSE' % (scoreSingle))
-
-    scoreSingleMAPE = calculateMAPE(testPredict[:, 0], testY[0])
+    scoreSingleMAPE = calculateMAPE(prediction_single_keras[:, 0], testY[0])
     print("scoreSingleMAPE: %.2f MAPE" % (scoreSingleMAPE))
+    scoreSingleMAPE2 = calculateMAPE(prediction_single[:, 0], testY[0])
+    print("scoreSingleMAPE2: %.2f MAPE" % (scoreSingleMAPE2))
 
     try:
-        scoreMultipleMAPE = calculateMAPE(np.append(testMultiple[0], testY[0][-1]), testY[0])
+        scoreMultipleMAPE = calculateMAPE(np.append(prediction_multiple[0], testY[0][-1]), testY[0])
         print("scoreMultipleMAPE: %.2f MAPE" % (scoreMultipleMAPE))
-        plot_results(np.append(testMultiple[0], testY[0][-1]), testY[0])
+        plot_results(np.append(prediction_multiple[0], testY[0][-1]), testY[0])
     except ValueError as e:
+        print("didnt go through")
         print(e)
 
     gc.collect()
