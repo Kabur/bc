@@ -1,0 +1,1 @@
+Different versions of this project(model, testing method etc...) are kept in branches. The main branch is just one of the versions, not necessarily the best one.
