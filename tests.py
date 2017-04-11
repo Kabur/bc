@@ -1,5 +1,18 @@
 import numpy as np
 
+stuff = [0, 1, 2, 3, 4]
+
+for i, thing in enumerate(stuff):
+    print(i, thing)
+    if i is 1:
+        i = 3
+
+for i in range(len(stuff)):
+    print(i, stuff[i])
+    if i is 1:
+        i = 3
+exit()
+
 x1 = np.array([1, 2, 3, 4, 5])
 x2 = np.array([5, 4, 3])
 

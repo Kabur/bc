@@ -20,17 +20,18 @@ np.random.seed(7)
 scaler = MinMaxScaler(feature_range=(0, 1))
 
 
-def window_and_label(data, window_size):
+def window_and_label(data, timesteps):
     x = []
     y = []
 
-    for i in range(len(data) - window_size):
-        x.append(data[i:(i + window_size), 0])
-        y.append(data[i + window_size, 0])
+    for i in range(len(data) - timesteps * 2 + 1):
+        x.append(data[i:(i + timesteps), 0])
+        y.append(data[(i + timesteps):(i + timesteps * 2), 0])
+        # y.append(data[i + timesteps, 0])
     return np.array(x), np.array(y)
 
 
-def load_data(filename, window_size, train_ratio):
+def load_data(filename, timesteps, features, train_ratio):
     train_x = train_y = test_x = test_y = []
 
     dataframe = pandas.read_csv(filename, usecols=[2], engine='python')
@@ -49,8 +50,19 @@ def load_data(filename, window_size, train_ratio):
     train_x, train_y = window_and_label(train_set, timesteps)
     test_x, test_y = window_and_label(test_set, timesteps)
 
-    train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], 1))
-    test_x = np.reshape(test_x, (test_x.shape[0], test_x.shape[1], 1))
+    print("THE DATASET", len(dataset))
+    print(dataset)
+    print("train_x", len(train_set))
+    print(train_x)
+    print("train_y")
+    print(train_y)
+    print("test_x", len(test_set))
+    print(test_x)
+    print("test_y")
+    print(test_y)
+
+    train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], features))
+    test_x = np.reshape(test_x, (test_x.shape[0], test_x.shape[1], features))
 
     return dataset, train_x, train_y, test_x, test_y
 
@@ -88,11 +100,11 @@ def plot_results(prediction, truth):
 
 
 # bigger the batch_size, the better the GPU performs
-def createModel(train_x, train_y, epochs, batch_size, features=1):
+def createModel(train_x, train_y, epochs, batch_size, vector_length, features=1):
     model = Sequential()
-    model.add(LSTM(4, batch_input_shape=(batch_size, timesteps, 1), stateful=True, return_sequences=True))
+    model.add(LSTM(4, batch_input_shape=(batch_size, timesteps, features), stateful=True, return_sequences=True))
     model.add(LSTM(4, batch_input_shape=(batch_size, timesteps, features), stateful=True))
-    model.add(Dense(1))
+    model.add(Dense(vector_length))
     model.compile(loss='mean_squared_error', optimizer='adam')
     print(model.summary())
 
@@ -151,46 +163,50 @@ if __name__ == '__main__':
     epochs = 1
     timesteps = 3
     batch_size = 1
-    prediction_length = 3
+    vector_length = 3
     reset = 0
-    ''' True parameteres'''
-    # epochs = 5
-    # timesteps = 96
-    # batch_size = 1
-    # prediction_length = 96
-    # reset = 96  # 96 * 7
 
-    dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, train_ratio)
-    # dataset, train_x, train_y, test_x, test_y = load_data('bigger_sample.csv', timesteps, train_ratio)
+    # dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, train_ratio)
+    dataset, train_x, train_y, test_x, test_y = load_data('bigger_sample.csv', timesteps, features, train_ratio)
+    # dataset, train_x, train_y, test_x, test_y = load_data('smallestest_sample.csv', timesteps, features, train_ratio)
+    print("************** AFTER RESHAPE ****************")
     print("dataset len: ", len(dataset))
     print("train_x len: ", len(train_x))
+    print(train_x)
     print("train_y len: ", len(train_y))
+    print(train_y)
     print("test_x len: ", len(test_x))
+    print(test_x)
     print("test_y len: ", len(test_y))
-    test_y2 = shape_check(test_x, train_y, test_x, test_y, batch_size, prediction_length)
+    print(test_y)
 
-    model = createModel(train_x, train_y, epochs, batch_size, features)
+    model = createModel(train_x, train_y, epochs, batch_size, vector_length, features)
 
     ''' Save & Load '''
-    model.save('model_1_96_1_output1.h5', False)
-    print("Model Saved!")
+    # model.save('model.h5', True)
+    # print("Model Saved!")
     # model = load_model('model_1_3_1_output1.h5')
     # print("Model Loaded!")
 
     ''' Predict '''
     model.reset_states()
-    prediction_single_keras = model.predict(test_x, batch_size=batch_size)
+    prediction_vectors = model.predict(test_x, batch_size=batch_size)
+
+    print("prediction_vectors")
+    print(prediction_vectors)
 
     ''' Invert Predictions to RL values'''
-    prediction_single_keras = scaler.inverse_transform(prediction_single_keras)
-    test_y = scaler.inverse_transform([test_y])
+    prediction_vectors = scaler.inverse_transform(prediction_vectors)
+    test_y = scaler.inverse_transform(test_y)
     print("Predictions done!")
+    print(prediction_vectors)
 
     ''' Calculate MAPE and print'''
-    mape_single_keras = calculate_mape(prediction_single_keras[:, 0], test_y[0])
-    print("mape_single_keras: %.2f MAPE" % mape_single_keras)
+    prediction_vectors = calculate_mape(prediction_vectors, test_y)
+    print("prediction_vectors: %.2f MAPE" % prediction_vectors)
 
     ''' Plot Results'''
-    plot_results(prediction_single_keras[0], test_y2[0])
+    # need to process the data to a single array for plotting
+    # plot_results(prediction_vectors, test_y)
 
     gc.collect()
