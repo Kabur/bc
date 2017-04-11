@@ -177,6 +177,8 @@ if __name__ == '__main__':
     batch_size = 1
     prediction_length = 96
     reset = 96  # 96 * 7
+    # todo: tweak parameters
+    # todo: increase batch_size, compute on GPU
 
     dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, train_ratio)
     # dataset, train_x, train_y, test_x, test_y = load_data('bigger_sample.csv', timesteps, train_ratio)
@@ -187,7 +189,6 @@ if __name__ == '__main__':
     print("test_y len: ", len(test_y))
     test_y2 = shape_check(test_x, train_y, test_x, test_y, batch_size, prediction_length)
 
-    exit()
     model = createModel(train_x, train_y, epochs, batch_size, features)
 
     ''' Save & Load '''
@@ -225,6 +226,6 @@ if __name__ == '__main__':
     print("mape_sequence: %.2f MAPE" % mape_sequence)
 
     ''' Plot Results'''
-    plot_results(prediction_sequence[0], test_y[0])
+    plot_results(prediction_sequence[0], test_y2[0])
 
     gc.collect()

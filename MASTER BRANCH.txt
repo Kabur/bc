@@ -1,0 +1,34 @@
+   
+    model = Sequential()
+    model.add(LSTM(4, batch_input_shape=(batch_size, timesteps, 1), stateful=True, return_sequences=True))
+    model.add(LSTM(4, batch_input_shape=(batch_size, timesteps, features), stateful=True))
+    model.add(Dense(1))
+    model.compile(loss='mean_squared_error', optimizer='adam')
+    print(model.summary())
+    for _ in range(epochs):
+        model.fit(train_x, train_y, epochs=1, batch_size=batch_size, verbose=2, shuffle=False)
+        model.reset_states()
+1. 
+    epochs = 5
+    timesteps = 96
+    batch_size = 1
+    prediction_length = 96
+    reset = 96  # 96 * 7
+
+	Epoch 1/1
+	2013s - loss: 0.0031
+	Epoch 1/1
+	2012s - loss: 8.8305e-04
+	Epoch 1/1
+	2007s - loss: 3.3823e-04
+	Epoch 1/1
+	2010s - loss: 3.3842e-04
+	Epoch 1/1
+	2017s - loss: 5.1959e-04
+	Finished Training!
+	Model Saved!
+	Predictions done!
+	mape_single_keras: 9.09 MAPE
+	mape_single: 10.74 MAPE
+	mape_sequence: 35.13 MAPE
+ 
