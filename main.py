@@ -105,25 +105,6 @@ def createModel(train_x, train_y, epochs, batch_size, features=1):
     return model
 
 
-# a stateful model has to be trained and tested on the same batch_size
-#
-# def predict_single_test(model, data):
-#     result = []
-#     predicted = []
-#     for i in range(int(len(data) / 2)):
-#         curr_frame = data[i*2: i*2+2]
-#         prediction = model.predict(curr_frame, batch_size=2)
-#         # model.reset_states()
-#         print(curr_frame)
-#         print(prediction)
-#         result.append(prediction)
-#
-#     print("RESULT")
-#     print(np.array(result).flatten())
-#     exit()
-#     return np.array(result).flatten()
-
-
 def predict_sequence(model, data, timesteps, batch_size, prediction_length, reset=0):
     result = []
 
@@ -167,17 +148,17 @@ if __name__ == '__main__':
     features = 1
     train_ratio = 0.70
     ''' Temp parameters'''
-    # epochs = 1
-    # timesteps = 3
-    # batch_size = 3
-    # prediction_length = 4
-    # reset = 2
-    ''' True parameteres'''
-    epochs = 5
-    timesteps = 96
+    epochs = 1
+    timesteps = 3
     batch_size = 1
-    prediction_length = 96
-    reset = 96  # 96 * 7
+    prediction_length = 3
+    reset = 0
+    ''' True parameteres'''
+    # epochs = 5
+    # timesteps = 96
+    # batch_size = 1
+    # prediction_length = 96
+    # reset = 96  # 96 * 7
 
     dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, train_ratio)
     # dataset, train_x, train_y, test_x, test_y = load_data('bigger_sample.csv', timesteps, train_ratio)
@@ -188,7 +169,6 @@ if __name__ == '__main__':
     print("test_y len: ", len(test_y))
     test_y2 = shape_check(test_x, train_y, test_x, test_y, batch_size, prediction_length)
 
-    exit()
     model = createModel(train_x, train_y, epochs, batch_size, features)
 
     ''' Save & Load '''
@@ -200,32 +180,17 @@ if __name__ == '__main__':
     ''' Predict '''
     model.reset_states()
     prediction_single_keras = model.predict(test_x, batch_size=batch_size)
-    model.reset_states()
-    prediction_single = predict_single(model, test_x, batch_size, reset=reset)
-    model.reset_states()
-    prediction_sequence = predict_sequence(model, test_x, timesteps, batch_size, prediction_length, reset=reset)
 
     ''' Invert Predictions to RL values'''
     prediction_single_keras = scaler.inverse_transform(prediction_single_keras)
-    prediction_single = scaler.inverse_transform([prediction_single])
     test_y = scaler.inverse_transform([test_y])
-    test_y2 = scaler.inverse_transform([test_y2])
-    prediction_sequence = scaler.inverse_transform([prediction_sequence])
     print("Predictions done!")
 
     ''' Calculate MAPE and print'''
-    # try:
     mape_single_keras = calculate_mape(prediction_single_keras[:, 0], test_y[0])
-    mape_single = calculate_mape(prediction_single[0], test_y[0])
-    mape_sequence = calculate_mape(prediction_sequence[0], test_y2[0])
-    # except ValueError as e:
-    #     print("Number of samples must be divisible by prediction_length")
-    #     exit()
     print("mape_single_keras: %.2f MAPE" % mape_single_keras)
-    print("mape_single: %.2f MAPE" % mape_single)
-    print("mape_sequence: %.2f MAPE" % mape_sequence)
 
     ''' Plot Results'''
-    plot_results(prediction_sequence[0], test_y2[0])
+    plot_results(prediction_single_keras[0], test_y2[0])
 
     gc.collect()
