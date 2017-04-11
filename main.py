@@ -87,6 +87,7 @@ def plot_results(prediction, truth):
     plt.show()
 
 
+# bigger the batch_size, the better the GPU performs
 def createModel(train_x, train_y, epochs, batch_size, features=1):
     model = Sequential()
     model.add(LSTM(4, batch_input_shape=(batch_size, timesteps, 1), stateful=True, return_sequences=True))
