@@ -30,6 +30,38 @@ def window_and_label(data, window_size):
     return np.array(x), np.array(y)
 
 
+def load_data2(filename, timesteps, train_ratio):
+    train_x = train_y = test_x = test_y = []
+
+    df = pandas.read_csv(filename, usecols=[0], engine='python')
+    print(df)
+
+    df['DATUM'] = pandas.to_datetime(df['DATUM'])
+    df['day_of_week'] = df['DATUM'].dt.weekday_name
+
+    print(df)
+    exit()
+
+    dataset = dataset.astype('float32')
+    dataset_length = len(dataset)
+
+    dataset = scaler.fit_transform(dataset)
+
+    train_size = int(dataset_length * train_ratio)
+    testSize = len(dataset) - train_size
+
+    train_set = dataset[0:train_size]
+    test_set = dataset[train_size:len(dataset)]
+
+    train_x, train_y = window_and_label(train_set, timesteps)
+    test_x, test_y = window_and_label(test_set, timesteps)
+
+    train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], 1))
+    test_x = np.reshape(test_x, (test_x.shape[0], test_x.shape[1], 1))
+
+    return dataset, train_x, train_y, test_x, test_y
+
+
 def load_data(filename, window_size, train_ratio):
     train_x = train_y = test_x = test_y = []
 
@@ -164,25 +196,26 @@ def predict_single(model, data, batch_size, reset=0):
 
 
 if __name__ == '__main__':
-    features = 1
-    train_ratio = 0.70
+    features = 2
+    train_ratio = 0.50
     ''' Temp parameters'''
-    # epochs = 1
-    # timesteps = 3
-    # batch_size = 3
-    # prediction_length = 4
-    # reset = 2
-    ''' True parameteres'''
-    epochs = 5
-    timesteps = 96
+    epochs = 1
+    timesteps = 3
     batch_size = 1
-    prediction_length = 96
-    reset = 96  # 96 * 7
+    prediction_length = 3
+    reset = 0
+    ''' True parameteres'''
+    # epochs = 5
+    # timesteps = 96
+    # batch_size = 1
+    # prediction_length = 96
+    # reset = 96  # 96 * 7
     # todo: tweak parameters
     # todo: increase batch_size, compute on GPU
 
-    dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, train_ratio)
+    # dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, train_ratio)
     # dataset, train_x, train_y, test_x, test_y = load_data('bigger_sample.csv', timesteps, train_ratio)
+    dataset, train_x, train_y, test_x, test_y = load_data2('smaller_sample.csv', timesteps, train_ratio)
     print("dataset len: ", len(dataset))
     print("train_x len: ", len(train_x))
     print("train_y len: ", len(train_y))
