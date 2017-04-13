@@ -24,7 +24,7 @@ def window_and_label(data, timesteps):
     x = []
     y = []
 
-    for i in range(len(data) - timesteps * 2 + 1):
+    for i in range(len(data) - timesteps * 2):  # used to be +1 here
         x.append(data[i:(i + timesteps), 0])
         y.append(data[(i + timesteps):(i + timesteps * 2), 0])
         # y.append(data[i + timesteps, 0])
@@ -37,11 +37,11 @@ def load_data(filename, timesteps, features, train_ratio):
     dataframe = pandas.read_csv(filename, usecols=[2], engine='python')
     dataset = dataframe.values
     dataset = dataset.astype('float32')
-    dataset_length = len(dataset)
+    dataset = dataset[:(len(dataset) - (len(dataset) % 96))]
 
     dataset = scaler.fit_transform(dataset)
 
-    train_size = int(dataset_length * train_ratio)
+    train_size = int(len(dataset) * train_ratio)
     testSize = len(dataset) - train_size
 
     train_set = dataset[0:train_size]
@@ -50,39 +50,33 @@ def load_data(filename, timesteps, features, train_ratio):
     train_x, train_y = window_and_label(train_set, timesteps)
     test_x, test_y = window_and_label(test_set, timesteps)
 
-    print("THE DATASET", len(dataset))
-    print(dataset)
-    print("train_x", len(train_set))
-    print(train_x)
-    print("train_y")
-    print(train_y)
-    print("test_x", len(test_set))
-    print(test_x)
-    print("test_y")
-    print(test_y)
-
     train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], features))
     test_x = np.reshape(test_x, (test_x.shape[0], test_x.shape[1], features))
 
     return dataset, train_x, train_y, test_x, test_y
 
 
-def shape_check(train_x, train_y, test_x, test_y, batch_size, prediction_length):
+def shape_check(train_x, train_y, test_x, test_y, batch_size):
     ''' Shape Check'''
+    print("dataset len: ", len(dataset))
+    print("train_x len: ", len(train_x))
+    print("train_y len: ", len(train_y))
+    print("test_x len: ", len(test_x))
+    print("test_y len: ", len(test_y))
     if len(train_x) % batch_size is not 0:
         print("Number of training samples is not divisible by batch_size")
         exit()
     if len(test_x) % batch_size is not 0:
         print("Number of testing samples is not divisible by batch_size")
         exit()
-    if len(test_y) % prediction_length is not 0:
-        print("Number of samples is not divisible by prediction_length, creating test_y2 for sequence prediction")
-        cutoff = len(test_y) % prediction_length
-        print("len(test_y): ", len(test_y), ",prediction_length: ", prediction_length, ",cutoff: ", cutoff)
-        test_y = test_y[:len(test_y) - cutoff]
-        print("new len(test_y): ", len(test_y))
-
-    return test_y
+    # if len(test_y) % prediction_length is not 0:
+    #     print("Number of samples is not divisible by prediction_length, creating test_y2 for sequence prediction")
+    #     cutoff = len(test_y) % prediction_length
+    #     print("len(test_y): ", len(test_y), ",prediction_length: ", prediction_length, ",cutoff: ", cutoff)
+    #     test_y = test_y[:len(test_y) - cutoff]
+    #     print("new len(test_y): ", len(test_y))
+    #
+    # return test_y
 
 
 def calculate_mape(prediction, y):
@@ -158,33 +152,25 @@ def predict_single(model, data, batch_size, reset=0):
 
 if __name__ == '__main__':
     features = 1
-    train_ratio = 0.70
+    train_ratio = 0.50
     ''' Temp parameters'''
-    epochs = 1
-    timesteps = 3
-    batch_size = 1
-    vector_length = 3
+    epochs = 10
+    timesteps = 96
+    batch_size = 96
+    vector_length = 96
     reset = 0
 
-    # dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, train_ratio)
-    dataset, train_x, train_y, test_x, test_y = load_data('bigger_sample.csv', timesteps, features, train_ratio)
+    dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, features, train_ratio)
+    # dataset, train_x, train_y, test_x, test_y = load_data('bigger_sample.csv', timesteps, features, train_ratio)
     # dataset, train_x, train_y, test_x, test_y = load_data('smallestest_sample.csv', timesteps, features, train_ratio)
-    print("************** AFTER RESHAPE ****************")
-    print("dataset len: ", len(dataset))
-    print("train_x len: ", len(train_x))
-    print(train_x)
-    print("train_y len: ", len(train_y))
-    print(train_y)
-    print("test_x len: ", len(test_x))
-    print(test_x)
-    print("test_y len: ", len(test_y))
-    print(test_y)
+
+    shape_check(train_x, train_y, test_x, test_y, batch_size)
 
     model = createModel(train_x, train_y, epochs, batch_size, vector_length, features)
 
     ''' Save & Load '''
-    # model.save('model.h5', True)
-    # print("Model Saved!")
+    model.save('model_(96, 96, 1)_4-4-96', True)
+    print("Model Saved!")
     # model = load_model('model_1_3_1_output1.h5')
     # print("Model Loaded!")
 
@@ -192,21 +178,20 @@ if __name__ == '__main__':
     model.reset_states()
     prediction_vectors = model.predict(test_x, batch_size=batch_size)
 
-    print("prediction_vectors")
-    print(prediction_vectors)
-
     ''' Invert Predictions to RL values'''
     prediction_vectors = scaler.inverse_transform(prediction_vectors)
     test_y = scaler.inverse_transform(test_y)
-    print("Predictions done!")
-    print(prediction_vectors)
+    # print("prediction_vectors: ", prediction_vectors.shape)
+    # print(prediction_vectors)
+    # print("test_y: ", test_y.shape)
+    # print(test_y)
 
     ''' Calculate MAPE and print'''
     prediction_vectors = calculate_mape(prediction_vectors, test_y)
     print("prediction_vectors: %.2f MAPE" % prediction_vectors)
 
     ''' Plot Results'''
-    # need to process the data to a single array for plotting
+    # need to process the data into a single array for plotting
     # plot_results(prediction_vectors, test_y)
 
     gc.collect()
