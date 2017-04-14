@@ -1,26 +1,26 @@
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
 =================================================================
-lstm_1 (LSTM)                (None, 6, 10)             560       
+lstm_1 (LSTM)                (None, 384, 96)           38400     
 _________________________________________________________________
-lstm_2 (LSTM)                (None, 6, 10)             840       
+lstm_2 (LSTM)                (None, 384, 96)           74112     
 _________________________________________________________________
-lstm_3 (LSTM)                (None, 6, 10)             840       
+lstm_3 (LSTM)                (None, 384, 96)           74112     
 _________________________________________________________________
-lstm_4 (LSTM)                (None, 10)                840       
+lstm_4 (LSTM)                (None, 96)                74112     
 _________________________________________________________________
-dense_1 (Dense)              (None, 3)                 33        
+dense_1 (Dense)              (None, 96)                9312      
 =================================================================
-Total params: 3,113
-Trainable params: 3,113
-Non-trainable params: 0
+Total params: 270,048.0
+Trainable params: 270,048
+Non-trainable params: 0.0
 _________________________________________________________________
 None
-epochs:  3
-timesteps:  6
-batch_size:  10
-prediction_length:  3
+epochs:  1
+timesteps:  384
+batch_size:  384
+prediction_length:  96
 features:  3
-mape:  21.2034538388
-median:  22.2956322134
-standard_deviation:  4.73974276672
+mape:  14.0088602901
+median:  7.97404870391
+standard_deviation:  12.5733063334

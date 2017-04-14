@@ -95,7 +95,7 @@ def plot_results(prediction, truth):
     plt.plot(prediction, label='Prediction')
     plt.legend()
     plt.show()
-    plt.savefig('graph.png')
+    # plt.savefig('graph.png')
     plt.close(fig)
 
 
@@ -109,10 +109,10 @@ class LossHistory(keras.callbacks.Callback):
 
 def createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features=1):
     model = Sequential()
-    model.add(LSTM(10, input_shape=(timesteps, features), return_sequences=True))
-    model.add(LSTM(10, return_sequences=True))
-    model.add(LSTM(10, return_sequences=True))
-    model.add(LSTM(10))
+    model.add(LSTM(48, input_shape=(timesteps, features), return_sequences=True))
+    model.add(LSTM(48, return_sequences=True))
+    model.add(LSTM(48, return_sequences=True))
+    model.add(LSTM(48))
     model.add(Dense(prediction_length))
     model.compile(loss='mean_squared_error', optimizer='adam')
     print(model.summary())
@@ -169,38 +169,45 @@ def predict_single(model, data, batch_size, reset=0):
 if __name__ == '__main__':
     features = 3
     ''' Temp parameters'''
-    train_ratio = 0.50
-    test_ratio = 0.25
-    validation_ratio = 0.25
-    epochs = 3
-    timesteps = 6
-    batch_size = 10
-    prediction_length = 3
-    ''' True Parameters '''  # 9.43 MAPE
-    # train_ratio = 0.70
-    # test_ratio = 0.20
-    # validation_ratio = 0.10
-    # epochs = 10
-    # timesteps = 96*4
-    # batch_size = 96*4
-    # prediction_length = 96
+    # train_ratio = 0.50
+    # test_ratio = 0.25
+    # validation_ratio = 0.25
+    # epochs = 3
+    # timesteps = 6
+    # batch_size = 10
+    # prediction_length = 3
+    ''' True Parameters '''
+    train_ratio = 0.70
+    test_ratio = 0.20
+    validation_ratio = 0.10
+    epochs = 20
+    timesteps = 96*4
+    batch_size = 96*4
+    prediction_length = 96
     # todo: tweak parameters
 
-    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
-    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('bigger_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    ''' Load Data '''
+    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('bigger_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
     print("Data Loaded!")
 
+    ''' optional: Create Model'''
     model, loss_history = createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features)
+    np.savetxt('loss_history.txt', loss_history, delimiter=',')
 
-    ''' Load & Save '''
+    ''' optional: Load '''
     # model = load_model('model(10, 10, 10, 96)_shape(384, 384, 3).h5')
     # print("Model Loaded!")
+    ''' optional: Return Training'''
     # history = LossHistory()
     # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
     # np.savetxt('loss_history.txt', np.array(history.losses), delimiter=',')
-    # model.save('model(10, 10, 10, 96)_shape(384, 384, 3).h5', True)
-    # print("Model Saved!")
+    ''' Save '''
+    # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
+    model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
+    print("Model Saved!")
 
+    ''' ********************************************************************** '''
     ''' Predict '''
     prediction = model.predict(test_x, batch_size=batch_size)
 
@@ -218,8 +225,8 @@ if __name__ == '__main__':
     median = np.median(mape_per_vector)
     standard_deviation = np.std(mape_per_vector)
     print("prediction_vectors MAPE: %.2f" % mape)
-    print("prediction_vectors Median: %.2f" % median)
-    print("prediction_vectors Standard Deviation: %.2f" % standard_deviation)
+    print("prediction_vectors Median Error: %.2f" % median)
+    print("prediction_vectors Standard Deviation of Error: %.2f" % standard_deviation)
 
     ''' Plot Results'''  # saving fig to file doesnt work
     prediction_array = []
@@ -230,16 +237,11 @@ if __name__ == '__main__':
         y_array.append(test_y[i])
         i += prediction_length
 
-    print("******** PREDICTION ARRAY ********* ")
-    print(np.array(prediction_array))
     prediction_array = np.array(prediction_array).flatten()
     y_array = np.array(y_array).flatten()
-    print("******** PREDICTION ARRAY ********* ")
-    print(prediction_array)
     plot_results(prediction_array, y_array)
 
     ''' SAVE RESULTS AND THE MODEL SUMMARY TO FILES '''
-    np.savetxt('loss_history.txt', loss_history, delimiter=',')
     orig_stdout = sys.stdout
     file = open('model_summary.txt', 'w')
     sys.stdout = file
