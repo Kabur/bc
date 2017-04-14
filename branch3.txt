@@ -1,0 +1,4 @@
+Working on shuffling train+test right now
+later stateful LSTM -> process the data to days
+
+stateless 4xLSTM + 1xDense outputting vectors(96)

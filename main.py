@@ -24,6 +24,17 @@ np.random.seed(7)
 scaler = MinMaxScaler(feature_range=(-1, 1))
 
 
+def shuffle_in_unison(a, b):
+    assert len(a) == len(b)
+    shuffled_a = np.empty(a.shape, dtype=a.dtype)
+    shuffled_b = np.empty(b.shape, dtype=b.dtype)
+    permutation = np.random.permutation(len(a))
+    for old_index, new_index in enumerate(permutation):
+        shuffled_a[new_index] = a[old_index]
+        shuffled_b[new_index] = b[old_index]
+    return shuffled_a, shuffled_b
+
+
 def window_and_label(data, timesteps, prediction_length):
     x = []
     y = []
@@ -53,14 +64,26 @@ def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, 
     test_size = int(len(dataset) * test_ratio)
 
     # todo: shuffle together train and test data here
-
-    train_set = dataset[0:train_size]
-    test_set = dataset[train_size:train_size + test_size]
+    main_set = dataset[0:train_size + test_size]
     validation_set = dataset[train_size + test_size:len(dataset)]
 
-    train_x, train_y = window_and_label(train_set, timesteps, prediction_length)
-    test_x, test_y = window_and_label(test_set, timesteps, prediction_length)
+    main_x, main_y = window_and_label(main_set, timesteps, prediction_length)
     validation_x, validation_y = window_and_label(validation_set, timesteps, prediction_length)
+
+    main_x = main_x[0:5]
+    main_y = main_y[0:5]
+
+    print("*** main_x *** ")
+    print(main_x)
+    print("*** main_y *** ")
+    print(main_y)
+    main_x, main_y = shuffle_in_unison(main_x, main_y)
+    print("*** SHUFFLED ***")
+    print("*** main_x *** ")
+    print(main_x)
+    print("*** main_y *** ")
+    print(main_y)
+    exit()
 
     return dataset, train_x, train_y, test_x, test_y, validation_x, validation_y
 
@@ -169,26 +192,27 @@ def predict_single(model, data, batch_size, reset=0):
 if __name__ == '__main__':
     features = 3
     ''' Temp parameters'''
-    # train_ratio = 0.50
-    # test_ratio = 0.25
-    # validation_ratio = 0.25
-    # epochs = 3
-    # timesteps = 6
-    # batch_size = 10
-    # prediction_length = 3
+    train_ratio = 0.50
+    test_ratio = 0.25
+    validation_ratio = 0.25
+    epochs = 3
+    timesteps = 6
+    batch_size = 10
+    prediction_length = 3
     ''' True Parameters '''
-    train_ratio = 0.70
-    test_ratio = 0.20
-    validation_ratio = 0.10
-    epochs = 20
-    timesteps = 96*4
-    batch_size = 96*4
-    prediction_length = 96
-    # todo: tweak parameters
+    # train_ratio = 0.70
+    # test_ratio = 0.20
+    # validation_ratio = 0.10
+    # epochs = 20
+    # timesteps = 96*4
+    # batch_size = 96*4
+    # prediction_length = 96
 
     ''' Load Data '''
-    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
-    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('bigger_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('smaller_sample.csv', timesteps,
+                                                                                       prediction_length, train_ratio,
+                                                                                       test_ratio, validation_ratio)
     print("Data Loaded!")
 
     ''' optional: Create Model'''
@@ -204,8 +228,8 @@ if __name__ == '__main__':
     # np.savetxt('loss_history.txt', np.array(history.losses), delimiter=',')
     ''' Save '''
     # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
-    model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
-    print("Model Saved!")
+    # model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
+    # print("Model Saved!")
 
     ''' ********************************************************************** '''
     ''' Predict '''

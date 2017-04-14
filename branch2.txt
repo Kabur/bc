@@ -1,2 +1,0 @@
-stateless 4xLSTM + 1xDense outputting vectors(96)
-added flags for days
