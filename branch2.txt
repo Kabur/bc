@@ -1,1 +1,2 @@
-working on adding the weekend flag here
+Weekend flag added
+training model that outputs vectors(96)

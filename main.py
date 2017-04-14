@@ -1,90 +1,68 @@
 import os
-
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
-# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import gc
 import numpy as np
+# import pydot
+import sys
 from matplotlib import style
 import matplotlib.pyplot as plt
-import pandas
+import pandas as pd
 import math
+import keras
 from keras.layers.core import Dense, Activation
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 from keras.models import load_model
+from keras.utils import plot_model
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from sklearn.utils import check_array
 
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 np.random.seed(7)
-scaler = MinMaxScaler(feature_range=(0, 1))
+scaler = MinMaxScaler(feature_range=(-1, 1))
 
 
-def window_and_label(data, window_size):
+def window_and_label(data, timesteps, prediction_length):
     x = []
     y = []
 
-    for i in range(len(data) - window_size):
-        x.append(data[i:(i + window_size), 0])
-        y.append(data[i + window_size, 0])
+    for i in range(len(data) - (timesteps + prediction_length) + 1):
+        x.append(data[i:(i + timesteps)])
+        y.append(data[(i + timesteps):(i + timesteps + prediction_length), 0])
     return np.array(x), np.array(y)
 
 
-def load_data2(filename, timesteps, train_ratio):
-    train_x = train_y = test_x = test_y = []
+def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, validation_ratio):
+    df = pd.read_csv(filename, usecols=[0, 2], engine='python')
 
-    df = pandas.read_csv(filename, usecols=[0], engine='python')
-    print(df)
+    # df['SUM_of_MNOZSTVO'] = df['SUM_of_MNOZSTVO'].values.astype('float32')
+    df['DATUM'] = pd.to_datetime(df['DATUM'])
+    df['day'] = df['DATUM'].dt.dayofweek
+    df['day_sine'] = df['day'].apply(np.sin)
+    df['day_cosine'] = df['day'].apply(np.cos)
+    del df['DATUM']
+    del df['day']
+    df['SUM_of_MNOZSTVO'] = scaler.fit_transform(df['SUM_of_MNOZSTVO'].values.reshape(-1, 1))
 
-    df['DATUM'] = pandas.to_datetime(df['DATUM'])
-    df['day_of_week'] = df['DATUM'].dt.weekday_name
+    dataset = df.values.astype('float32')
+    # dataset = scaler.fit_transform(dataset)
 
-    print(df)
-    exit()
+    train_size = int(len(dataset) * train_ratio)
+    test_size = int(len(dataset) * test_ratio)
 
-    dataset = dataset.astype('float32')
-    dataset_length = len(dataset)
-
-    dataset = scaler.fit_transform(dataset)
-
-    train_size = int(dataset_length * train_ratio)
-    testSize = len(dataset) - train_size
-
-    train_set = dataset[0:train_size]
-    test_set = dataset[train_size:len(dataset)]
-
-    train_x, train_y = window_and_label(train_set, timesteps)
-    test_x, test_y = window_and_label(test_set, timesteps)
-
-    train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], 1))
-    test_x = np.reshape(test_x, (test_x.shape[0], test_x.shape[1], 1))
-
-    return dataset, train_x, train_y, test_x, test_y
-
-
-def load_data(filename, window_size, train_ratio):
-    train_x = train_y = test_x = test_y = []
-
-    dataframe = pandas.read_csv(filename, usecols=[2], engine='python')
-    dataset = dataframe.values
-    dataset = dataset.astype('float32')
-    dataset_length = len(dataset)
-
-    dataset = scaler.fit_transform(dataset)
-
-    train_size = int(dataset_length * train_ratio)
-    testSize = len(dataset) - train_size
+    # todo: shuffle together train and test data here
 
     train_set = dataset[0:train_size]
-    test_set = dataset[train_size:len(dataset)]
+    test_set = dataset[train_size:train_size + test_size]
+    validation_set = dataset[train_size + test_size:len(dataset)]
 
-    train_x, train_y = window_and_label(train_set, timesteps)
-    test_x, test_y = window_and_label(test_set, timesteps)
+    train_x, train_y = window_and_label(train_set, timesteps, prediction_length)
+    test_x, test_y = window_and_label(test_set, timesteps, prediction_length)
+    validation_x, validation_y = window_and_label(validation_set, timesteps, prediction_length)
 
-    train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], 1))
-    test_x = np.reshape(test_x, (test_x.shape[0], test_x.shape[1], 1))
-
-    return dataset, train_x, train_y, test_x, test_y
+    return dataset, train_x, train_y, test_x, test_y, validation_x, validation_y
 
 
 def shape_check(train_x, train_y, test_x, test_y, batch_size, prediction_length):
@@ -117,43 +95,36 @@ def plot_results(prediction, truth):
     plt.plot(prediction, label='Prediction')
     plt.legend()
     plt.show()
+    plt.savefig('graph.png')
+    plt.close(fig)
 
 
-# bigger the batch_size, the better the GPU performs
-def createModel(train_x, train_y, epochs, batch_size, features=1):
+class LossHistory(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+        self.losses = []
+
+    def on_batch_end(self, batch, logs={}):
+        self.losses.append(logs.get('loss'))
+
+
+def createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features=1):
     model = Sequential()
-    model.add(LSTM(4, batch_input_shape=(batch_size, timesteps, 1), stateful=True, return_sequences=True))
-    model.add(LSTM(4, batch_input_shape=(batch_size, timesteps, features), stateful=True))
-    model.add(Dense(1))
+    model.add(LSTM(10, input_shape=(timesteps, features), return_sequences=True))
+    model.add(LSTM(10, return_sequences=True))
+    model.add(LSTM(10, return_sequences=True))
+    model.add(LSTM(10))
+    model.add(Dense(prediction_length))
     model.compile(loss='mean_squared_error', optimizer='adam')
     print(model.summary())
+    # plot_model(model, to_file='model.png')
 
-    for _ in range(epochs):
-        model.fit(train_x, train_y, epochs=1, batch_size=batch_size, verbose=2, shuffle=False)
-        model.reset_states()
+
+    history = LossHistory()
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
 
     print("Finished Training!")
 
-    return model
-
-
-# a stateful model has to be trained and tested on the same batch_size
-#
-# def predict_single_test(model, data):
-#     result = []
-#     predicted = []
-#     for i in range(int(len(data) / 2)):
-#         curr_frame = data[i*2: i*2+2]
-#         prediction = model.predict(curr_frame, batch_size=2)
-#         # model.reset_states()
-#         print(curr_frame)
-#         print(prediction)
-#         result.append(prediction)
-#
-#     print("RESULT")
-#     print(np.array(result).flatten())
-#     exit()
-#     return np.array(result).flatten()
+    return model, np.array(history.losses)
 
 
 def predict_sequence(model, data, timesteps, batch_size, prediction_length, reset=0):
@@ -196,70 +167,92 @@ def predict_single(model, data, batch_size, reset=0):
 
 
 if __name__ == '__main__':
-    features = 2
-    train_ratio = 0.50
+    features = 3
     ''' Temp parameters'''
-    epochs = 1
-    timesteps = 3
-    batch_size = 1
+    train_ratio = 0.50
+    test_ratio = 0.25
+    validation_ratio = 0.25
+    epochs = 3
+    timesteps = 6
+    batch_size = 10
     prediction_length = 3
-    reset = 0
-    ''' True parameteres'''
-    # epochs = 5
-    # timesteps = 96
-    # batch_size = 1
+    ''' True Parameters '''  # 9.43 MAPE
+    # train_ratio = 0.70
+    # test_ratio = 0.20
+    # validation_ratio = 0.10
+    # epochs = 10
+    # timesteps = 96*4
+    # batch_size = 96*4
     # prediction_length = 96
-    # reset = 96  # 96 * 7
     # todo: tweak parameters
-    # todo: increase batch_size, compute on GPU
 
-    # dataset, train_x, train_y, test_x, test_y = load_data('01_zilina_suma.csv', timesteps, train_ratio)
-    # dataset, train_x, train_y, test_x, test_y = load_data('bigger_sample.csv', timesteps, train_ratio)
-    dataset, train_x, train_y, test_x, test_y = load_data2('smaller_sample.csv', timesteps, train_ratio)
-    print("dataset len: ", len(dataset))
-    print("train_x len: ", len(train_x))
-    print("train_y len: ", len(train_y))
-    print("test_x len: ", len(test_x))
-    print("test_y len: ", len(test_y))
-    test_y2 = shape_check(test_x, train_y, test_x, test_y, batch_size, prediction_length)
+    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('bigger_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    print("Data Loaded!")
 
-    model = createModel(train_x, train_y, epochs, batch_size, features)
+    model, loss_history = createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features)
 
-    ''' Save & Load '''
-    model.save('model_1_96_1_output1.h5', False)
-    print("Model Saved!")
-    # model = load_model('model_1_3_1_output1.h5')
+    ''' Load & Save '''
+    # model = load_model('model(10, 10, 10, 96)_shape(384, 384, 3).h5')
     # print("Model Loaded!")
+    # history = LossHistory()
+    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
+    # np.savetxt('loss_history.txt', np.array(history.losses), delimiter=',')
+    # model.save('model(10, 10, 10, 96)_shape(384, 384, 3).h5', True)
+    # print("Model Saved!")
 
     ''' Predict '''
-    model.reset_states()
-    prediction_single_keras = model.predict(test_x, batch_size=batch_size)
-    model.reset_states()
-    prediction_single = predict_single(model, test_x, batch_size, reset=reset)
-    model.reset_states()
-    prediction_sequence = predict_sequence(model, test_x, timesteps, batch_size, prediction_length, reset=reset)
+    prediction = model.predict(test_x, batch_size=batch_size)
 
     ''' Invert Predictions to RL values'''
-    prediction_single_keras = scaler.inverse_transform(prediction_single_keras)
-    prediction_single = scaler.inverse_transform([prediction_single])
-    test_y = scaler.inverse_transform([test_y])
-    test_y2 = scaler.inverse_transform([test_y2])
-    prediction_sequence = scaler.inverse_transform([prediction_sequence])
-    print("Predictions done!")
+    prediction = scaler.inverse_transform(prediction)
+    test_y = scaler.inverse_transform(test_y)
 
-    ''' Calculate MAPE and print'''
-    # try:
-    mape_single_keras = calculate_mape(prediction_single_keras[:, 0], test_y[0])
-    mape_single = calculate_mape(prediction_single[0], test_y[0])
-    mape_sequence = calculate_mape(prediction_sequence[0], test_y2[0])
-    # except ValueError as e:
-    #     print("Number of samples must be divisible by prediction_length")
-    #     exit()
-    print("mape_single_keras: %.2f MAPE" % mape_single_keras)
-    print("mape_single: %.2f MAPE" % mape_single)
-    print("mape_sequence: %.2f MAPE" % mape_sequence)
+    ''' Calculate and print errors '''
+    mape_per_vector = []
+    for i in range(len(prediction)):
+        mape_per_vector.append(calculate_mape(prediction[i], test_y[i]))
+    mape_per_vector = np.array(mape_per_vector)
 
-    ''' Plot Results'''
-    plot_results(prediction_sequence[0], test_y2[0])
+    mape = calculate_mape(prediction, test_y)
+    median = np.median(mape_per_vector)
+    standard_deviation = np.std(mape_per_vector)
+    print("prediction_vectors MAPE: %.2f" % mape)
+    print("prediction_vectors Median: %.2f" % median)
+    print("prediction_vectors Standard Deviation: %.2f" % standard_deviation)
+
+    ''' Plot Results'''  # saving fig to file doesnt work
+    prediction_array = []
+    y_array = []
+    i = 0
+    while i < len(prediction):
+        prediction_array.append(prediction[i])
+        y_array.append(test_y[i])
+        i += prediction_length
+
+    print("******** PREDICTION ARRAY ********* ")
+    print(np.array(prediction_array))
+    prediction_array = np.array(prediction_array).flatten()
+    y_array = np.array(y_array).flatten()
+    print("******** PREDICTION ARRAY ********* ")
+    print(prediction_array)
+    plot_results(prediction_array, y_array)
+
+    ''' SAVE RESULTS AND THE MODEL SUMMARY TO FILES '''
+    np.savetxt('loss_history.txt', loss_history, delimiter=',')
+    orig_stdout = sys.stdout
+    file = open('model_summary.txt', 'w')
+    sys.stdout = file
+    print(model.summary())
+    print('epochs: ', epochs)
+    print('timesteps: ', timesteps)
+    print('batch_size: ', batch_size)
+    print('prediction_length: ', prediction_length)
+    print('features: ', features)
+    print('mape: ', mape)
+    print('median: ', median)
+    print('standard_deviation: ', standard_deviation)
+    sys.stdout = orig_stdout
+    file.close()
 
     gc.collect()
