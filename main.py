@@ -204,7 +204,7 @@ if __name__ == '__main__':
     # np.savetxt('loss_history.txt', np.array(history.losses), delimiter=',')
     ''' Save '''
     # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
-    model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
+    model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)  # 10.31 MAPE after 20e
     print("Model Saved!")
 
     ''' ********************************************************************** '''
@@ -242,6 +242,7 @@ if __name__ == '__main__':
     plot_results(prediction_array, y_array)
 
     ''' SAVE RESULTS AND THE MODEL SUMMARY TO FILES '''
+    # todo: its not working... :(
     orig_stdout = sys.stdout
     file = open('model_summary.txt', 'w')
     sys.stdout = file
