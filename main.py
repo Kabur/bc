@@ -62,28 +62,27 @@ def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, 
 
     train_size = int(len(dataset) * train_ratio)
     test_size = int(len(dataset) * test_ratio)
+    print(len(dataset), train_size, test_size)
 
     # todo: shuffle together train and test data here
-    main_set = dataset[0:train_size + test_size]
-    validation_set = dataset[train_size + test_size:len(dataset)]
+    main_set = dataset[0:(train_size + test_size)]
+    validation_set = dataset[(train_size + test_size):len(dataset)]
 
     main_x, main_y = window_and_label(main_set, timesteps, prediction_length)
     validation_x, validation_y = window_and_label(validation_set, timesteps, prediction_length)
 
-    main_x = main_x[0:5]
-    main_y = main_y[0:5]
-
-    print("*** main_x *** ")
-    print(main_x)
-    print("*** main_y *** ")
-    print(main_y)
     main_x, main_y = shuffle_in_unison(main_x, main_y)
-    print("*** SHUFFLED ***")
-    print("*** main_x *** ")
-    print(main_x)
-    print("*** main_y *** ")
-    print(main_y)
-    exit()
+    train_x = main_x[0: train_size]
+    train_y = main_y[0: train_size]
+    test_x = main_x[train_size:(train_size + test_size)]
+    test_y = main_y[train_size:(train_size + test_size)]
+    print("main_set", main_set.shape)
+    print("*** main_x *** ", main_x.shape)
+    print("*** main_y *** ", main_y.shape)
+    print("*** train_x *** ", train_x.shape)
+    print("*** train_y *** ", train_y.shape)
+    print("*** test_x *** ", test_x.shape)
+    print("*** test_y *** ", test_y.shape)
 
     return dataset, train_x, train_y, test_x, test_y, validation_x, validation_y
 
@@ -192,27 +191,27 @@ def predict_single(model, data, batch_size, reset=0):
 if __name__ == '__main__':
     features = 3
     ''' Temp parameters'''
-    train_ratio = 0.50
-    test_ratio = 0.25
-    validation_ratio = 0.25
-    epochs = 3
-    timesteps = 6
-    batch_size = 10
-    prediction_length = 3
+    # train_ratio = 0.50
+    # test_ratio = 0.25
+    # validation_ratio = 0.25
+    # epochs = 3
+    # timesteps = 6
+    # batch_size = 10
+    # prediction_length = 3
     ''' True Parameters '''
-    # train_ratio = 0.70
-    # test_ratio = 0.20
-    # validation_ratio = 0.10
-    # epochs = 20
-    # timesteps = 96*4
-    # batch_size = 96*4
-    # prediction_length = 96
+    train_ratio = 0.70
+    test_ratio = 0.20
+    validation_ratio = 0.10
+    epochs = 20
+    timesteps = 96*4
+    batch_size = 96*4
+    prediction_length = 96
 
     ''' Load Data '''
-    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
-    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('smaller_sample.csv', timesteps,
-                                                                                       prediction_length, train_ratio,
-                                                                                       test_ratio, validation_ratio)
+    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('smaller_sample.csv', timesteps,
+    #                                                                                    prediction_length, train_ratio,
+    #                                                                                    test_ratio, validation_ratio)
     print("Data Loaded!")
 
     ''' optional: Create Model'''
@@ -229,7 +228,8 @@ if __name__ == '__main__':
     ''' Save '''
     # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
     # model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
-    # print("Model Saved!")
+    model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
+    print("Model Saved!")
 
     ''' ********************************************************************** '''
     ''' Predict '''
@@ -266,19 +266,19 @@ if __name__ == '__main__':
     plot_results(prediction_array, y_array)
 
     ''' SAVE RESULTS AND THE MODEL SUMMARY TO FILES '''
-    orig_stdout = sys.stdout
-    file = open('model_summary.txt', 'w')
-    sys.stdout = file
-    print(model.summary())
-    print('epochs: ', epochs)
-    print('timesteps: ', timesteps)
-    print('batch_size: ', batch_size)
-    print('prediction_length: ', prediction_length)
-    print('features: ', features)
-    print('mape: ', mape)
-    print('median: ', median)
-    print('standard_deviation: ', standard_deviation)
-    sys.stdout = orig_stdout
-    file.close()
+    # orig_stdout = sys.stdout
+    # file = open('model_summary.txt', 'w')
+    # sys.stdout = file
+    # print(model.summary())
+    # print('epochs: ', epochs)
+    # print('timesteps: ', timesteps)
+    # print('batch_size: ', batch_size)
+    # print('prediction_length: ', prediction_length)
+    # print('features: ', features)
+    # print('mape: ', mape)
+    # print('median: ', median)
+    # print('standard_deviation: ', standard_deviation)
+    # sys.stdout = orig_stdout
+    # file.close()
 
     gc.collect()
