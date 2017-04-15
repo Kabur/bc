@@ -34,6 +34,17 @@ def window_and_label(data, timesteps, prediction_length):
     return np.array(x), np.array(y)
 
 
+def shuffle_in_unison(a, b):
+    assert len(a) == len(b)
+    shuffled_a = np.empty(a.shape, dtype=a.dtype)
+    shuffled_b = np.empty(b.shape, dtype=b.dtype)
+    permutation = np.random.permutation(len(a))
+    for old_index, new_index in enumerate(permutation):
+        shuffled_a[new_index] = a[old_index]
+        shuffled_b[new_index] = b[old_index]
+    return shuffled_a, shuffled_b
+
+
 def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, validation_ratio):
     df = pd.read_csv(filename, usecols=[0, 2], engine='python')
 
@@ -51,16 +62,19 @@ def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, 
 
     train_size = int(len(dataset) * train_ratio)
     test_size = int(len(dataset) * test_ratio)
+    print(len(dataset), train_size, test_size)
 
-    # todo: shuffle together train and test data here
+    main_set = dataset[0:(train_size + test_size)]
+    validation_set = dataset[(train_size + test_size):len(dataset)]
 
-    train_set = dataset[0:train_size]
-    test_set = dataset[train_size:train_size + test_size]
-    validation_set = dataset[train_size + test_size:len(dataset)]
-
-    train_x, train_y = window_and_label(train_set, timesteps, prediction_length)
-    test_x, test_y = window_and_label(test_set, timesteps, prediction_length)
+    main_x, main_y = window_and_label(main_set, timesteps, prediction_length)
     validation_x, validation_y = window_and_label(validation_set, timesteps, prediction_length)
+
+    main_x, main_y = shuffle_in_unison(main_x, main_y)
+    train_x = main_x[0: train_size]
+    train_y = main_y[0: train_size]
+    test_x = main_x[train_size:(train_size + test_size)]
+    test_y = main_y[train_size:(train_size + test_size)]
 
     return dataset, train_x, train_y, test_x, test_y, validation_x, validation_y
 
@@ -109,9 +123,8 @@ class LossHistory(keras.callbacks.Callback):
 
 def createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features=1):
     model = Sequential()
-    model.add(LSTM(48, input_shape=(timesteps, features), return_sequences=True))
-    model.add(LSTM(48, return_sequences=True))
-    model.add(LSTM(48, return_sequences=True))
+    model.add(LSTM(48, batch_input_shape=(batch_size, timesteps, features), return_sequences=True, stateful=True))
+    model.add(LSTM(48, return_sequences=True, stateful=True))
     model.add(LSTM(48))
     model.add(Dense(prediction_length))
     model.compile(loss='mean_squared_error', optimizer='adam')
@@ -125,45 +138,6 @@ def createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_leng
     print("Finished Training!")
 
     return model, np.array(history.losses)
-
-
-def predict_sequence(model, data, timesteps, batch_size, prediction_length, reset=0):
-    result = []
-
-    for i in range(int(len(data) / prediction_length)):
-        curr_frame = data[i * prediction_length]
-        predicted = []
-        # predict 1 window for current window, then shift by window_size(==timesteps)
-        for j in range(prediction_length):
-            prediction = model.predict(curr_frame[np.newaxis, :, :], batch_size=batch_size)
-            predicted.append(prediction[0, 0])
-
-            curr_frame = curr_frame[1:]
-            curr_frame = np.insert(curr_frame, [timesteps - 1], prediction[0, 0], axis=0)
-
-        # reset the state after 'reset' sequence predictions
-        if reset != 0 and (i + 1) % reset == 0:
-            model.reset_states()
-
-        # append the predicted sequence
-        result.append(predicted)
-
-    result = np.array(result)
-    result = result.flatten()
-    return result
-
-
-def predict_single(model, data, batch_size, reset=0):
-    result = []
-
-    for i, sample in enumerate(data):
-        prediction = model.predict(sample[np.newaxis, :, :], batch_size=batch_size)
-        if reset != 0 and (i + 1) % reset == 0:
-            model.reset_states()
-        result.append(prediction)
-
-    result = np.array(result).flatten()
-    return result
 
 
 if __name__ == '__main__':
@@ -242,19 +216,19 @@ if __name__ == '__main__':
     plot_results(prediction_array, y_array)
 
     ''' SAVE RESULTS AND THE MODEL SUMMARY TO FILES '''
-    orig_stdout = sys.stdout
-    file = open('model_summary.txt', 'w')
-    sys.stdout = file
-    print(model.summary())
-    print('epochs: ', epochs)
-    print('timesteps: ', timesteps)
-    print('batch_size: ', batch_size)
-    print('prediction_length: ', prediction_length)
-    print('features: ', features)
-    print('mape: ', mape)
-    print('median: ', median)
-    print('standard_deviation: ', standard_deviation)
-    sys.stdout = orig_stdout
-    file.close()
+    # orig_stdout = sys.stdout
+    # file = open('model_summary.txt', 'w')
+    # sys.stdout = file
+    # print(model.summary())
+    # print('epochs: ', epochs)
+    # print('timesteps: ', timesteps)
+    # print('batch_size: ', batch_size)
+    # print('prediction_length: ', prediction_length)
+    # print('features: ', features)
+    # print('mape: ', mape)
+    # print('median: ', median)
+    # print('standard_deviation: ', standard_deviation)
+    # sys.stdout = orig_stdout
+    # file.close()
 
     gc.collect()
