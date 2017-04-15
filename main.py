@@ -152,7 +152,7 @@ if __name__ == '__main__':
     # train_ratio = 0.50
     # test_ratio = 0.25
     # validation_ratio = 0.25
-    epochs = 1
+    # epochs = 1
     # timesteps = 6
     # batch_size = 10
     # prediction_length = 3
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     train_ratio = 0.70
     test_ratio = 0.15
     validation_ratio = 0.15
-    epochs = 20
+    epochs = 10
     timesteps = 96*4
     batch_size = 96*4
     prediction_length = 96
@@ -172,19 +172,18 @@ if __name__ == '__main__':
     print("Data Loaded!")
 
     ''' optional: Create Model'''
-    model, loss_history = createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features)
-    np.savetxt('loss_history.txt', loss_history, delimiter=',')
-
+    # model, loss_history = createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features)
+    # np.savetxt('loss_history.txt', loss_history, delimiter=',')
     ''' optional: Load '''
-    # model = load_model('model(10, 10, 10, 96)_shape(384, 384, 3).h5')
-    # print("Model Loaded!")
+    model = load_model('addedtime_model(48, 48, 48, 48, 96)_shape(384, 384, 5)_20e.h5')
+    print("Model Loaded!")
     ''' optional: Return Training'''
-    # history = LossHistory()
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    # np.savetxt('loss_history.txt', np.array(history.losses), delimiter=',')
+    history = LossHistory()
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
+    np.savetxt('loss_history30.txt', np.array(history.losses), delimiter=',')
     ''' Save '''
     # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
-    model.save('addedtime_model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
+    model.save('addedtime_model(48, 48, 48, 48, 96)_shape(384, 384, 5)_30e.h5', True)
     print("Model Saved!")
 
     ''' ********************************************************************** '''
@@ -194,7 +193,7 @@ if __name__ == '__main__':
 
     ''' Invert Predictions to RL values'''
     prediction = scaler.inverse_transform(prediction)
-    prediction = scaler.inverse_transform(prediction2)
+    prediction2 = scaler.inverse_transform(prediction2)
     test_y = scaler.inverse_transform(test_y)
     validation_y = scaler.inverse_transform(validation_y)
 
