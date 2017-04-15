@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import math
 import keras
-from keras.layers.core import Dense, Activation
+from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 from keras.models import load_model
@@ -132,9 +132,13 @@ class LossHistory(keras.callbacks.Callback):
 def createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features=1):
     model = Sequential()
     model.add(LSTM(48, input_shape=(timesteps, features), return_sequences=True))
+    model.add(Dropout(0.15))
     model.add(LSTM(48, return_sequences=True))
+    model.add(Dropout(0.15))
     model.add(LSTM(48, return_sequences=True))
+    model.add(Dropout(0.15))
     model.add(LSTM(48))
+    model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
     model.compile(loss='mean_squared_error', optimizer='adam')
     print(model.summary())
@@ -200,9 +204,9 @@ if __name__ == '__main__':
     # prediction_length = 3
     ''' True Parameters '''
     train_ratio = 0.70
-    test_ratio = 0.20
-    validation_ratio = 0.10
-    epochs = 20
+    test_ratio = 0.15
+    validation_ratio = 0.15
+    epochs = 10
     timesteps = 96*4
     batch_size = 96*4
     prediction_length = 96
@@ -214,30 +218,34 @@ if __name__ == '__main__':
     #                                                                                    test_ratio, validation_ratio)
     print("Data Loaded!")
 
+    ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' optional: Create Model'''
-    model, loss_history = createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features)
-    np.savetxt('loss_history.txt', loss_history, delimiter=',')
-
+    # model, loss_history = createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features)
+    # np.savetxt('loss_history.txt', loss_history, delimiter=',')
     ''' optional: Load '''
-    # model = load_model('model(10, 10, 10, 96)_shape(384, 384, 3).h5')
-    # print("Model Loaded!")
+    model = load_model('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_dropout1_40e.h5')
+    print("Model Loaded!")
     ''' optional: Return Training'''
-    # history = LossHistory()
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    # np.savetxt('loss_history.txt', np.array(history.losses), delimiter=',')
+    history = LossHistory()
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
+    np.savetxt('loss_history50.txt', np.array(history.losses), delimiter=',')
     ''' Save '''
     # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
-    # model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
-    model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
+    # model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_40e.h5', True) # 4.30 MAPE after 40e
+    # model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_60e.h5', True)
+    model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_dropout1_50e.h5', True)
     print("Model Saved!")
 
-    ''' ********************************************************************** '''
+    ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' Predict '''
     prediction = model.predict(test_x, batch_size=batch_size)
+    prediction2 = model.predict(validation_x, batch_size=batch_size)
 
     ''' Invert Predictions to RL values'''
     prediction = scaler.inverse_transform(prediction)
+    prediction2 = scaler.inverse_transform(prediction2)
     test_y = scaler.inverse_transform(test_y)
+    validation_y = scaler.inverse_transform(validation_y)
 
     ''' Calculate and print errors '''
     mape_per_vector = []
@@ -252,13 +260,25 @@ if __name__ == '__main__':
     print("prediction_vectors Median Error: %.2f" % median)
     print("prediction_vectors Standard Deviation of Error: %.2f" % standard_deviation)
 
+    mape_per_vector2 = []
+    for i in range(len(prediction2)):
+        mape_per_vector2.append(calculate_mape(prediction2[i], validation_y[i]))
+    mape_per_vector2 = np.array(mape_per_vector2)
+
+    mape2 = calculate_mape(prediction2, validation_y)
+    median2 = np.median(mape_per_vector2)
+    standard_deviation2 = np.std(mape_per_vector2)
+    print("prediction_vectors MAPE2: %.2f" % mape2)
+    print("prediction_vectors Median Error2: %.2f" % median2)
+    print("prediction_vectors Standard Deviation of Error2: %.2f" % standard_deviation2)
+
     ''' Plot Results'''  # saving fig to file doesnt work
     prediction_array = []
     y_array = []
     i = 0
     while i < len(prediction):
-        prediction_array.append(prediction[i])
-        y_array.append(test_y[i])
+        prediction_array.append(prediction2[i])
+        y_array.append(validation_y[i])
         i += prediction_length
 
     prediction_array = np.array(prediction_array).flatten()
