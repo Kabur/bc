@@ -170,6 +170,8 @@ def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timestep
     model.add(Dropout(0.15))
     model.add(LSTM(48, return_sequences=True))
     model.add(Dropout(0.15))
+    model.add(LSTM(48, return_sequences=True))
+    model.add(Dropout(0.15))
     model.add(LSTM(48))
     model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
@@ -206,9 +208,11 @@ if __name__ == '__main__':
     val_ratio = 0.15
     epochs = 20
     timesteps = 96*4
-    batch_size = 96*4*2
+    batch_size = 96*4
     prediction_length = 96
-    total_epochs = epochs
+    # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
+    total_epochs = 40
+    # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
     dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
@@ -225,17 +229,21 @@ if __name__ == '__main__':
     np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
     np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
     ''' optional: Load '''
-    # model = load_model('model(48, 48, 96)_shape(1152, 384, 3)_dropout1_20e.h5')
+    # model = load_model('20e_model(48, 48, 48, 96)_shape(768, 384, 3).h5')
     # print("Model Loaded!")
     ''' optional: Return Training'''
-       # history = LossHistory()
+    # history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
+    # batch_train_losses = np.array(history.batch_train_losses)
+    # train_losses = np.array(history.train_losses)
+    # test_losses = np.array(history.test_losses)
+    # val_losses = np.array(history.val_losses)
     # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    # np.savetxt('{0}loss_history.txt'.format(total_epochs), np.array(history.batch_train_losses), delimiter=',')
-    # np.savetxt('{0}train_losses.txt'.format(total_epochs), np.array(history.train_losses), delimiter=',')
-    # np.savetxt('{0}test_losses.txt'.format(total_epochs), np.array(history.test_losses), delimiter=',')
-    # np.savetxt('{0}val_losses.txt'.format(total_epochs), np.array(history.val_losses), delimiter=',')
+    # np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
+    # np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
+    # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
+    # np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
     ''' Save '''
-    model.save('{0}e_model(48, 48, 48, 96)_shape({1}, {2}, {3}).h5'.format(total_epochs, batch_size, timesteps, features), True)
+    model.save('{0}e_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3}).h5'.format(total_epochs, batch_size, timesteps, features), True)
     print("Model Saved!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
