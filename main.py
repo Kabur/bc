@@ -133,10 +133,10 @@ def createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_leng
     model = Sequential()
     model.add(LSTM(48, input_shape=(timesteps, features), return_sequences=True))
     model.add(Dropout(0.15))
-    model.add(LSTM(48, return_sequences=True))
-    model.add(Dropout(0.15))
-    model.add(LSTM(48, return_sequences=True))
-    model.add(Dropout(0.15))
+    # model.add(LSTM(48, return_sequences=True))
+    # model.add(Dropout(0.15))
+    # model.add(LSTM(48, return_sequences=True))
+    # model.add(Dropout(0.15))
     model.add(LSTM(48))
     model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
@@ -206,9 +206,10 @@ if __name__ == '__main__':
     train_ratio = 0.70
     test_ratio = 0.15
     validation_ratio = 0.15
-    epochs = 10
+    epochs = 20
     timesteps = 96*4
-    batch_size = 96*4
+    # batch_size = 96*4
+    batch_size = 96*4*3
     prediction_length = 96
 
     ''' Load Data '''
@@ -221,19 +222,19 @@ if __name__ == '__main__':
     ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' optional: Create Model'''
     # model, loss_history = createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features)
-    # np.savetxt('loss_history.txt', loss_history, delimiter=',')
+    # np.savetxt('loss_history20.txt', loss_history, delimiter=',')
     ''' optional: Load '''
-    model = load_model('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_dropout1_40e.h5')
+    model = load_model('model(48, 48, 96)_shape(1152, 384, 3)_dropout1_20e.h5')
     print("Model Loaded!")
     ''' optional: Return Training'''
     history = LossHistory()
     model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    np.savetxt('loss_history50.txt', np.array(history.losses), delimiter=',')
+    np.savetxt('loss_history40.txt', np.array(history.losses), delimiter=',')
     ''' Save '''
     # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
     # model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_40e.h5', True) # 4.30 MAPE after 40e
     # model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_60e.h5', True)
-    model.save('model(48, 48, 48, 48, 96)_shape(384, 384, 3)_dropout1_50e.h5', True)
+    model.save('model(48, 48, 96)_shape(1152, 384, 3)_dropout1_40e.h5', True)
     print("Model Saved!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
