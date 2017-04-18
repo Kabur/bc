@@ -111,25 +111,53 @@ def plot_results(prediction, truth):
     plt.plot(prediction, label='Prediction')
     plt.legend()
     plt.show()
-    # plt.savefig('graph.png')
     plt.close(fig)
 
 
+def plot_losses(train_losses, test_losses, val_losses):
+    fig = plt.figure()
+    # ax = fig.add_subplot(111)
+    plt.plot(train_losses, label='train_losses')
+    plt.plot(test_losses, label='test_losses')
+    plt.plot(val_losses, label='val_losses')
+    plt.legend()
+    plt.show()
+
+
 class LossHistory(keras.callbacks.Callback):
-    def on_train_begin(self, logs={}):
-        self.losses = []
+    def __init__(self, model, batch_size, test_x, test_y, val_x, val_y):
+        super().__init__()
+        self.batch_train_losses = []
+        self.train_losses = []
+        self.test_losses = []
+        self.val_losses = []
+        self.model = model
+        self.batch_size = batch_size
+        self.test_x = test_x
+        self.test_y = test_y
+        self.val_x = val_x
+        self.val_y = val_y
 
-    def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get('loss'))
+    def on_train_begin(self, logs=None):
+        if logs is None:
+            logs = {}
+
+    def on_batch_end(self, batch, logs=None):
+        if logs is None:
+            logs = {}
+        self.batch_train_losses.append(logs.get('loss'))
+
+    def on_epoch_end(self, epoch, logs=None):
+        if logs is None:
+            logs = {}
+        self.train_losses.append(logs.get('loss'))
+        self.test_losses.append(self.model.evaluate(self.test_x, self.test_y, self.batch_size, verbose=0))
+        self.val_losses.append(self.model.evaluate(self.val_x, self.val_y, self.batch_size, verbose=0))
 
 
-def createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features=1):
+def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features=1):
     model = Sequential()
     model.add(LSTM(48, input_shape=(timesteps, features), return_sequences=True))
-    # model.add(Dropout(0.15))
-    model.add(LSTM(48, return_sequences=True))
-    # model.add(Dropout(0.15))
-    model.add(LSTM(48, return_sequences=True))
     # model.add(Dropout(0.15))
     model.add(LSTM(48))
     # model.add(Dropout(0.15))
@@ -138,42 +166,51 @@ def createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_leng
     print(model.summary())
     # plot_model(model, to_file='model.png')
 
-    history = LossHistory()
+    history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
     model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
+
+    batch_train_losses = np.array(history.batch_train_losses)
+    train_losses = np.array(history.train_losses)
+    test_losses = np.array(history.test_losses)
+    val_losses = np.array(history.val_losses)
 
     print("Finished Training!")
 
-    return model, np.array(history.losses)
+    return model, batch_train_losses, train_losses, test_losses, val_losses
 
 
 if __name__ == '__main__':
     features = 5
     ''' Temp parameters'''
-    # train_ratio = 0.50
-    # test_ratio = 0.25
-    # validation_ratio = 0.25
-    epochs = 1
-    # timesteps = 6
-    # batch_size = 10
-    # prediction_length = 3
+    train_ratio = 0.50
+    test_ratio = 0.25
+    validation_ratio = 0.25
+    epochs = 3
+    timesteps = 6
+    batch_size = 10
+    prediction_length = 3
     ''' True Parameters '''
-    train_ratio = 0.70
-    test_ratio = 0.15
-    validation_ratio = 0.15
-    epochs = 20
-    timesteps = 96*4
-    batch_size = 96*4
-    prediction_length = 96
+    # train_ratio = 0.70
+    # test_ratio = 0.15
+    # validation_ratio = 0.15
+    # epochs = 20
+    # timesteps = 96*4
+    # batch_size = 96*4
+    # prediction_length = 96
+    total_epochs = epochs
 
     ''' Load Data '''
-    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
-    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('bigger_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('bigger_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
     # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('smaller_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
     print("Data Loaded!")
 
     ''' optional: Create Model'''
-    model, loss_history = createModel(train_x, train_y, epochs, timesteps, batch_size, prediction_length, features)
-    np.savetxt('loss_history.txt', loss_history, delimiter=',')
+    model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, validation_x, validation_y, epochs, timesteps, batch_size, prediction_length, features)
+    np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
+    np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
+    np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
+    np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
 
     ''' optional: Load '''
     # model = load_model('model(10, 10, 10, 96)_shape(384, 384, 3).h5')
@@ -181,10 +218,14 @@ if __name__ == '__main__':
     ''' optional: Return Training'''
     # history = LossHistory()
     # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    # np.savetxt('loss_history.txt', np.array(history.losses), delimiter=',')
+    # np.savetxt('{0}loss_history.txt'.format(total_epochs), np.array(history.batch_train_losses), delimiter=',')
+    # np.savetxt('{0}train_losses.txt'.format(total_epochs), np.array(history.train_losses), delimiter=',')
+    # np.savetxt('{0}test_losses.txt'.format(total_epochs), np.array(history.test_losses), delimiter=',')
+    # np.savetxt('{0}val_losses.txt'.format(total_epochs), np.array(history.val_losses), delimiter=',')
     ''' Save '''
     # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
-    model.save('addedtime_model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
+    # model.save('addedtime_model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
+    model.save('{0}e_model()_shape({1}, {2}, {3}).h5'.format(total_epochs, batch_size, timesteps, features), True)
     print("Model Saved!")
 
     ''' ********************************************************************** '''
@@ -194,7 +235,7 @@ if __name__ == '__main__':
 
     ''' Invert Predictions to RL values'''
     prediction = scaler.inverse_transform(prediction)
-    prediction = scaler.inverse_transform(prediction2)
+    prediction2 = scaler.inverse_transform(prediction2)
     test_y = scaler.inverse_transform(test_y)
     validation_y = scaler.inverse_transform(validation_y)
 
@@ -224,16 +265,17 @@ if __name__ == '__main__':
     print("prediction_vectors Standard Deviation of Error2: %.2f" % standard_deviation2)
 
     ''' Plot Results'''  # saving fig to file doesnt work
-    prediction_array = []
-    y_array = []
-    i = 0
-    while i < len(prediction2):
-        prediction_array.append(prediction2[i])
-        y_array.append(validation_y[i])
-        i += prediction_length
-
-    prediction_array = np.array(prediction_array).flatten()
-    y_array = np.array(y_array).flatten()
-    plot_results(prediction_array, y_array)
+    # prediction_array = []
+    # y_array = []
+    # i = 0
+    # while i < len(prediction2):
+    #     prediction_array.append(prediction2[i])
+    #     y_array.append(validation_y[i])
+    #     i += prediction_length
+    #
+    # prediction_array = np.array(prediction_array).flatten()
+    # y_array = np.array(y_array).flatten()
+    # plot_results(prediction_array, y_array)
+    plot_losses(train_losses, test_losses, val_losses)
 
     gc.collect()
