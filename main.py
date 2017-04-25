@@ -1,8 +1,11 @@
+
 import os
 import gc
 import numpy as np
 # import pydot
 import sys
+
+from keras.callbacks import ModelCheckpoint
 from matplotlib import style
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -53,9 +56,9 @@ def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, 
     df['day'] = df['DATUM'].dt.dayofweek
     df['day_sine'] = df['day'].apply(np.sin)
     df['day_cosine'] = df['day'].apply(np.cos)
-   #  df['time_sine'] = df['CAS'].apply(np.sin)
-   #  df['time_cosine'] = df['CAS'].apply(np.cos)
-   #  del df['CAS']
+    #  df['time_sine'] = df['CAS'].apply(np.sin)
+    #  df['time_cosine'] = df['CAS'].apply(np.cos)
+    #  del df['CAS']
     del df['DATUM']
     del df['day']
     df['SUM_of_MNOZSTVO'] = scaler.fit_transform(df['SUM_of_MNOZSTVO'].values.reshape(-1, 1))
@@ -65,10 +68,16 @@ def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, 
 
     train_size = int(len(dataset) * train_ratio)
     test_size = int(len(dataset) * test_ratio)
+    val_size = int(len(dataset) * val_ratio)
     print(len(dataset), train_size, test_size)
 
-    main_set = dataset[0:(train_size + test_size)]
-    val_set = dataset[(train_size + test_size):len(dataset)]
+    ''' original setss'''
+    # main_set = dataset[0:(train_size + test_size)]
+    # val_set = dataset[(train_size + test_size):len(dataset)]
+    ''' changed sets '''
+    val_set = dataset[train_size: (train_size + val_size)]
+    main_set = dataset[0:train_size]
+    main_set = np.concatenate((main_set, dataset[(train_size + val_size): len(dataset)]))
 
     main_x, main_y = window_and_label(main_set, timesteps, prediction_length)
     val_x, val_y = window_and_label(val_set, timesteps, prediction_length)
@@ -172,6 +181,8 @@ def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timestep
     model.add(Dropout(0.15))
     model.add(LSTM(48, return_sequences=True))
     model.add(Dropout(0.15))
+    model.add(LSTM(48, return_sequences=True))
+    model.add(Dropout(0.15))
     model.add(LSTM(48))
     model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
@@ -179,8 +190,11 @@ def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timestep
     print(model.summary())
     # plot_model(model, to_file='model.png')
 
+    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\weights-improvement-{epoch:02d}.h5"
+    checkpoint = ModelCheckpoint(filepath, verbose=1)
+
     history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
-    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history, checkpoint])
 
     batch_train_losses = np.array(history.batch_train_losses)
     train_losses = np.array(history.train_losses)
@@ -198,7 +212,7 @@ if __name__ == '__main__':
     # train_ratio = 0.50
     # test_ratio = 0.25
     # val_ratio = 0.25
-    # epochs = 3
+    # epochs = 10
     # timesteps = 6
     # batch_size = 10
     # prediction_length = 3
@@ -206,19 +220,19 @@ if __name__ == '__main__':
     train_ratio = 0.70
     test_ratio = 0.15
     val_ratio = 0.15
-    epochs = 20
+    epochs = 60
     timesteps = 96*4
     batch_size = 96*4
     prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
-    total_epochs = 40
+    total_epochs = epochs
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
-    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
-    # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample.csv', timesteps,
-    #                                                                                    prediction_length, train_ratio,
-    #                                                                                    test_ratio, val_ratio)
+    # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
+    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample.csv', timesteps,
+                                                                         prediction_length, train_ratio,
+                                                                         test_ratio, val_ratio)
     print("Data Loaded!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
@@ -243,7 +257,7 @@ if __name__ == '__main__':
     # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
     # np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
     ''' Save '''
-    model.save('{0}e_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3}).h5'.format(total_epochs, batch_size, timesteps, features), True)
+    model.save('{0}e_model(48, 48, 48, 48, 48, 96)_shape({1}, {2}, {3})_differentvalset.h5'.format(total_epochs, batch_size, timesteps, features), True)
     print("Model Saved!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
