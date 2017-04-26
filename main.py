@@ -1,8 +1,13 @@
+
 import os
 import gc
+
+import datetime
 import numpy as np
 # import pydot
 import sys
+
+from keras.callbacks import ModelCheckpoint
 from matplotlib import style
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -22,16 +27,15 @@ from sklearn.utils import check_array
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 np.random.seed(7)
 scaler = MinMaxScaler(feature_range=(-1, 1))
-
-
-def window_and_label(data, timesteps, prediction_length):
-    x = []
-    y = []
-
-    for i in range(len(data) - (timesteps + prediction_length) + 1):
-        x.append(data[i:(i + timesteps)])
-        y.append(data[(i + timesteps):(i + timesteps + prediction_length), 0])
-    return np.array(x), np.array(y)
+holidays = [(2013, 1, 1), (2013, 1, 6), (2013, 3, 29), (2013, 4, 1), (2013, 5, 1),
+            (2013, 5, 8), (2013, 7, 5), (2013, 8, 29), (2013, 9, 1), (2013, 9, 15),
+            (2013, 11, 1), (2013, 11, 17), (2013, 12, 24), (2013, 12, 25), (2013, 12, 26),
+            (2014, 1, 1), (2014, 1, 6), (2014, 4, 18), (2014, 4, 21), (2014, 5, 1),
+            (2014, 5, 8), (2014, 7, 5), (2014, 8, 29), (2014, 9, 1), (2014, 9, 15),
+            (2014, 11, 1), (2014, 11, 17), (2014, 12, 24), (2014, 12, 25), (2014, 12, 26),
+            (2015, 1, 1), (2015, 1, 6), (2015, 4, 3), (2015, 4, 6), (2015, 5, 1),
+            (2015, 5, 8), (2015, 7, 5), (2015, 8, 29), (2015, 9, 1), (2015, 9, 15),
+            (2015, 11, 1), (2015, 11, 17), (2015, 12, 24), (2015, 12, 25), (2015, 12, 26)]
 
 
 def shuffle_in_unison(a, b):
@@ -45,18 +49,37 @@ def shuffle_in_unison(a, b):
     return shuffled_a, shuffled_b
 
 
-def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, validation_ratio):
-    df = pd.read_csv(filename, usecols=[0, 1, 2], engine='python')
+def window_and_label(data, timesteps, prediction_length):
+    x = []
+    y = []
 
-    df['DATUM'] = pd.to_datetime(df['DATUM'])
+    for i in range(len(data) - (timesteps + prediction_length) + 1):
+        x.append(data[i:(i + timesteps)])
+        y.append(data[(i + timesteps):(i + timesteps + prediction_length), 0])
+    return np.array(x), np.array(y)
+
+
+def tag_freedays(row):
+    if row['day'] is 5 or row['day'] is 6:
+        return 1
+    else:
+        for date in holidays:
+            if row['DATUM'] == datetime.date(*date):
+                return 1
+
+    return 0
+
+
+def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, val_ratio):
+    df = pd.read_csv(filename, usecols=[0, 2], parse_dates=[0], dayfirst=True, engine='python')
+
+    # df['SUM_of_MNOZSTVO'] = df['SUM_of_MNOZSTVO'].values.astype('float32')
+    # df['DATUM'] = pd.to_datetime(df['DATUM'])
     df['day'] = df['DATUM'].dt.dayofweek
-    df['day_sine'] = df['day'].apply(np.sin)
-    df['day_cosine'] = df['day'].apply(np.cos)
-    df['time_sine'] = df['CAS'].apply(np.sin)
-    df['time_cosine'] = df['CAS'].apply(np.cos)
-    del df['CAS']
+    df['DATUM'] = df['DATUM'].dt.date
+    df['day'] = df.apply(tag_freedays, axis=1)
+
     del df['DATUM']
-    del df['day']
     df['SUM_of_MNOZSTVO'] = scaler.fit_transform(df['SUM_of_MNOZSTVO'].values.reshape(-1, 1))
 
     dataset = df.values.astype('float32')
@@ -64,21 +87,29 @@ def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, 
 
     train_size = int(len(dataset) * train_ratio)
     test_size = int(len(dataset) * test_ratio)
+    val_size = int(len(dataset) * val_ratio)
     print(len(dataset), train_size, test_size)
 
     main_set = dataset[0:(train_size + test_size)]
-    validation_set = dataset[(train_size + test_size):len(dataset)]
+    val_set = dataset[(train_size + test_size):len(dataset)]
 
     main_x, main_y = window_and_label(main_set, timesteps, prediction_length)
-    validation_x, validation_y = window_and_label(validation_set, timesteps, prediction_length)
+    val_x, val_y = window_and_label(val_set, timesteps, prediction_length)
 
     main_x, main_y = shuffle_in_unison(main_x, main_y)
     train_x = main_x[0: train_size]
     train_y = main_y[0: train_size]
     test_x = main_x[train_size:(train_size + test_size)]
     test_y = main_y[train_size:(train_size + test_size)]
+    print("main_set", main_set.shape)
+    print("*** main_x *** ", main_x.shape)
+    print("*** main_y *** ", main_y.shape)
+    print("*** train_x *** ", train_x.shape)
+    print("*** train_y *** ", train_y.shape)
+    print("*** test_x *** ", test_x.shape)
+    print("*** test_y *** ", test_y.shape)
 
-    return dataset, train_x, train_y, test_x, test_y, validation_x, validation_y
+    return dataset, train_x, train_y, test_x, test_y, val_x, val_y
 
 
 def shape_check(train_x, train_y, test_x, test_y, batch_size, prediction_length):
@@ -111,6 +142,7 @@ def plot_results(prediction, truth):
     plt.plot(prediction, label='Prediction')
     plt.legend()
     plt.show()
+    # plt.savefig('graph.png')
     plt.close(fig)
 
 
@@ -158,15 +190,25 @@ class LossHistory(keras.callbacks.Callback):
 def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features=1):
     model = Sequential()
     model.add(LSTM(48, input_shape=(timesteps, features), return_sequences=True))
+    model.add(Dropout(0.15))
+    model.add(LSTM(48, return_sequences=True))
+    model.add(Dropout(0.15))
+    model.add(LSTM(48, return_sequences=True))
+    model.add(Dropout(0.15))
+    # model.add(LSTM(48, return_sequences=True))
     # model.add(Dropout(0.15))
     model.add(LSTM(48))
-    # model.add(Dropout(0.15))
+    model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
     model.compile(loss='mean_squared_error', optimizer='adam')
     print(model.summary())
     # plot_model(model, to_file='model.png')
 
+    # filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\weights-improvement-{epoch:02d}.h5"
+    # checkpoint = ModelCheckpoint(filepath, verbose=1)
+
     history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
+    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history, checkpoint])
     model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
 
     batch_train_losses = np.array(history.batch_train_losses)
@@ -180,64 +222,67 @@ def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timestep
 
 
 if __name__ == '__main__':
-    features = 5
+    features = 2
     ''' Temp parameters'''
-    train_ratio = 0.50
-    test_ratio = 0.25
-    validation_ratio = 0.25
-    epochs = 3
-    timesteps = 6
-    batch_size = 10
-    prediction_length = 3
+    # train_ratio = 0.50
+    # test_ratio = 0.25
+    # val_ratio = 0.25
+    # epochs = 10
+    # timesteps = 6
+    # batch_size = 10
+    # prediction_length = 3
     ''' True Parameters '''
-    # train_ratio = 0.70
-    # test_ratio = 0.15
-    # validation_ratio = 0.15
-    # epochs = 20
-    # timesteps = 96*4
-    # batch_size = 96*4
-    # prediction_length = 96
+    train_ratio = 0.70
+    test_ratio = 0.15
+    val_ratio = 0.15
+    epochs = 2
+    timesteps = 96*4
+    batch_size = 96*4
+    prediction_length = 96
+    # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
     total_epochs = epochs
+    # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
-    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
-    dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('bigger_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
-    # dataset, train_x, train_y, test_x, test_y, validation_x, validation_y = load_data2('smaller_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, validation_ratio)
+    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
+    # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
     print("Data Loaded!")
 
+    ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' optional: Create Model'''
-    model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, validation_x, validation_y, epochs, timesteps, batch_size, prediction_length, features)
+    model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
     np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
     np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
     np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
     np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
-
     ''' optional: Load '''
-    # model = load_model('model(10, 10, 10, 96)_shape(384, 384, 3).h5')
+    # model = load_model('20e_model(48, 48, 48, 96)_shape(768, 384, 3).h5')
     # print("Model Loaded!")
     ''' optional: Return Training'''
-    # history = LossHistory()
+    # history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
+    # batch_train_losses = np.array(history.batch_train_losses)
+    # train_losses = np.array(history.train_losses)
+    # test_losses = np.array(history.test_losses)
+    # val_losses = np.array(history.val_losses)
     # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    # np.savetxt('{0}loss_history.txt'.format(total_epochs), np.array(history.batch_train_losses), delimiter=',')
-    # np.savetxt('{0}train_losses.txt'.format(total_epochs), np.array(history.train_losses), delimiter=',')
-    # np.savetxt('{0}test_losses.txt'.format(total_epochs), np.array(history.test_losses), delimiter=',')
-    # np.savetxt('{0}val_losses.txt'.format(total_epochs), np.array(history.val_losses), delimiter=',')
+    # np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
+    # np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
+    # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
+    # np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
     ''' Save '''
-    # model.save('model(10, 10, 10, 10, 96)_shape(384, 384, 3).h5', True)  # 9.43 MAPE after 20e
-    # model.save('addedtime_model(48, 48, 48, 48, 96)_shape(384, 384, 3)_20e.h5', True)
-    model.save('{0}e_model()_shape({1}, {2}, {3}).h5'.format(total_epochs, batch_size, timesteps, features), True)
+    model.save('{0}e_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_drop1_val1_days2.h5'.format(total_epochs, batch_size, timesteps, features), True)
     print("Model Saved!")
 
-    ''' ********************************************************************** '''
+    ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' Predict '''
     prediction = model.predict(test_x, batch_size=batch_size)
-    prediction2 = model.predict(validation_x, batch_size=batch_size)
+    prediction2 = model.predict(val_x, batch_size=batch_size)
 
     ''' Invert Predictions to RL values'''
     prediction = scaler.inverse_transform(prediction)
     prediction2 = scaler.inverse_transform(prediction2)
     test_y = scaler.inverse_transform(test_y)
-    validation_y = scaler.inverse_transform(validation_y)
+    val_y = scaler.inverse_transform(val_y)
 
     ''' Calculate and print errors '''
     mape_per_vector = []
@@ -254,10 +299,10 @@ if __name__ == '__main__':
 
     mape_per_vector2 = []
     for i in range(len(prediction2)):
-        mape_per_vector2.append(calculate_mape(prediction2[i], validation_y[i]))
+        mape_per_vector2.append(calculate_mape(prediction2[i], val_y[i]))
     mape_per_vector2 = np.array(mape_per_vector2)
 
-    mape2 = calculate_mape(prediction2, validation_y)
+    mape2 = calculate_mape(prediction2, val_y)
     median2 = np.median(mape_per_vector2)
     standard_deviation2 = np.std(mape_per_vector2)
     print("prediction_vectors MAPE2: %.2f" % mape2)
@@ -265,17 +310,17 @@ if __name__ == '__main__':
     print("prediction_vectors Standard Deviation of Error2: %.2f" % standard_deviation2)
 
     ''' Plot Results'''  # saving fig to file doesnt work
+    plot_losses(train_losses, test_losses, val_losses)
     # prediction_array = []
     # y_array = []
     # i = 0
-    # while i < len(prediction2):
+    # while i < len(prediction):
     #     prediction_array.append(prediction2[i])
-    #     y_array.append(validation_y[i])
+    #     y_array.append(val_y[i])
     #     i += prediction_length
     #
     # prediction_array = np.array(prediction_array).flatten()
     # y_array = np.array(y_array).flatten()
     # plot_results(prediction_array, y_array)
-    plot_losses(train_losses, test_losses, val_losses)
 
     gc.collect()
