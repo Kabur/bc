@@ -64,6 +64,8 @@ def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, 
     df['SUM_of_MNOZSTVO'] = scaler.fit_transform(df['SUM_of_MNOZSTVO'].values.reshape(-1, 1))
 
     dataset = df.values.astype('float32')
+    print(dataset)
+    dataset = dataset[0:(len(dataset) - int(len(dataset)*val_ratio))]
     # dataset = scaler.fit_transform(dataset)
 
     train_size = int(len(dataset) * train_ratio)
@@ -71,13 +73,11 @@ def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, 
     val_size = int(len(dataset) * val_ratio)
     print(len(dataset), train_size, test_size)
 
-    ''' original setss'''
-    # main_set = dataset[0:(train_size + test_size)]
-    # val_set = dataset[(train_size + test_size):len(dataset)]
-    ''' changed sets '''
-    val_set = dataset[train_size: (train_size + val_size)]
-    main_set = dataset[0:train_size]
-    main_set = np.concatenate((main_set, dataset[(train_size + val_size): len(dataset)]))
+    main_set = dataset[0:(train_size + test_size)]
+    val_set = dataset[(train_size + test_size):len(dataset)]
+    # val_set = dataset[train_size: (train_size + val_size)]
+    # main_set = dataset[0:train_size]
+    # main_set = np.concatenate((main_set, dataset[(train_size + val_size): len(dataset)]))
 
     main_x, main_y = window_and_label(main_set, timesteps, prediction_length)
     val_x, val_y = window_and_label(val_set, timesteps, prediction_length)
@@ -181,8 +181,8 @@ def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timestep
     model.add(Dropout(0.15))
     model.add(LSTM(48, return_sequences=True))
     model.add(Dropout(0.15))
-    model.add(LSTM(48, return_sequences=True))
-    model.add(Dropout(0.15))
+    # model.add(LSTM(48, return_sequences=True))
+    # model.add(Dropout(0.15))
     model.add(LSTM(48))
     model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
@@ -220,7 +220,7 @@ if __name__ == '__main__':
     train_ratio = 0.70
     test_ratio = 0.15
     val_ratio = 0.15
-    epochs = 60
+    epochs = 50
     timesteps = 96*4
     batch_size = 96*4
     prediction_length = 96
@@ -229,10 +229,10 @@ if __name__ == '__main__':
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
-    # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
-    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample.csv', timesteps,
-                                                                         prediction_length, train_ratio,
-                                                                         test_ratio, val_ratio)
+    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
+    # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample.csv', timesteps,
+    #                                                                      prediction_length, train_ratio,
+    #                                                                      test_ratio, val_ratio)
     print("Data Loaded!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
     # np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
     ''' Save '''
-    model.save('{0}e_model(48, 48, 48, 48, 48, 96)_shape({1}, {2}, {3})_differentvalset.h5'.format(total_epochs, batch_size, timesteps, features), True)
+    model.save('{0}e_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_differentvalset.h5'.format(total_epochs, batch_size, timesteps, features), True)
     print("Model Saved!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
