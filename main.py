@@ -27,6 +27,12 @@ from sklearn.utils import check_array
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 np.random.seed(7)
 scaler = MinMaxScaler(feature_range=(-1, 1))
+scaler2 = MinMaxScaler(feature_range=(-1, 1))
+scaler3 = MinMaxScaler(feature_range=(-1, 1))
+scaler4 = MinMaxScaler(feature_range=(-1, 1))
+scaler5 = MinMaxScaler(feature_range=(-1, 1))
+scaler6 = MinMaxScaler(feature_range=(-1, 1))
+scaler7 = MinMaxScaler(feature_range=(-1, 1))
 holidays = [(2013, 1, 1), (2013, 1, 6), (2013, 3, 29), (2013, 4, 1), (2013, 5, 1),
             (2013, 5, 8), (2013, 7, 5), (2013, 8, 29), (2013, 9, 1), (2013, 9, 15),
             (2013, 11, 1), (2013, 11, 17), (2013, 12, 24), (2013, 12, 25), (2013, 12, 26),
@@ -71,43 +77,57 @@ def tag_freedays(row):
 
 
 def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, val_ratio):
-    df = pd.read_csv(filename, usecols=[0, 2], parse_dates=[0], dayfirst=True, engine='python')
+    # df = pd.read_csv(filename, usecols=[0, 3], parse_dates=[0], dayfirst=True, engine='python')
+    df = pd.read_csv(filename, usecols=[0, 3, 4, 5, 6, 7, 8, 9], parse_dates=[0], dayfirst=True, engine='python')
 
-    # df['SUM_of_MNOZSTVO'] = df['SUM_of_MNOZSTVO'].values.astype('float32')
+    df['SUM_of_MNOZSTVO'] = df['SUM_of_MNOZSTVO'].values.astype('float32')
+    df['sln_trv'] = df['sln_trv'].values.astype('float32')
+    df['t_pr'] = df['t_pr'].values.astype('float32')
+    df['tlak_pr'] = df['tlak_pr'].values.astype('float32')
+    df['vie_vp_rych'] = df['vie_vp_rych'].values.astype('float32')
+    df['vlh_pr'] = df['vlh_pr'].values.astype('float32')
+    df['zra_uhrn'] = df['zra_uhrn'].values.astype('float32')
+
+    ''' add day tags '''
     # df['DATUM'] = pd.to_datetime(df['DATUM'])
     df['day'] = df['DATUM'].dt.dayofweek
     df['DATUM'] = df['DATUM'].dt.date
     df['day'] = df.apply(tag_freedays, axis=1)
-
     del df['DATUM']
+
+    ''' transform '''
     df['SUM_of_MNOZSTVO'] = scaler.fit_transform(df['SUM_of_MNOZSTVO'].values.reshape(-1, 1))
+    df['sln_trv'] = scaler2.fit_transform(df['sln_trv'].values.reshape(-1, 1))
+    df['t_pr'] = scaler3.fit_transform(df['t_pr'].values.reshape(-1, 1))
+    df['tlak_pr'] = scaler4.fit_transform(df['tlak_pr'].values.reshape(-1, 1))
+    df['vie_vp_rych'] = scaler5.fit_transform(df['vie_vp_rych'].values.reshape(-1, 1))
+    df['vlh_pr'] = scaler6.fit_transform(df['vlh_pr'].values.reshape(-1, 1))
+    df['zra_uhrn'] = scaler7.fit_transform(df['zra_uhrn'].values.reshape(-1, 1))
+
+    # values = scaler.inverse_transform(df['SUM_of_MNOZSTVO'].values.astype('float32').reshape(-1, 1))
 
     dataset = df.values.astype('float32')
-    # dataset = scaler.fit_transform(dataset)
 
+    ''' define sizes '''
     train_size = int(len(dataset) * train_ratio)
     test_size = int(len(dataset) * test_ratio)
     val_size = int(len(dataset) * val_ratio)
     print(len(dataset), train_size, test_size)
 
+    ''' create sets '''
     main_set = dataset[0:(train_size + test_size)]
     val_set = dataset[(train_size + test_size):len(dataset)]
 
+    ''' label sets '''
     main_x, main_y = window_and_label(main_set, timesteps, prediction_length)
     val_x, val_y = window_and_label(val_set, timesteps, prediction_length)
 
+    ''' shuffle split main set into train and test sets'''
     main_x, main_y = shuffle_in_unison(main_x, main_y)
     train_x = main_x[0: train_size]
     train_y = main_y[0: train_size]
     test_x = main_x[train_size:(train_size + test_size)]
     test_y = main_y[train_size:(train_size + test_size)]
-    print("main_set", main_set.shape)
-    print("*** main_x *** ", main_x.shape)
-    print("*** main_y *** ", main_y.shape)
-    print("*** train_x *** ", train_x.shape)
-    print("*** train_y *** ", train_y.shape)
-    print("*** test_x *** ", test_x.shape)
-    print("*** test_y *** ", test_y.shape)
 
     return dataset, train_x, train_y, test_x, test_y, val_x, val_y
 
@@ -222,49 +242,50 @@ def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timestep
 
 
 if __name__ == '__main__':
-    features = 2
+    features = 8
     ''' Temp parameters'''
-    # train_ratio = 0.50
-    # test_ratio = 0.25
-    # val_ratio = 0.25
-    # epochs = 10
-    # timesteps = 6
-    # batch_size = 10
-    # prediction_length = 3
+    train_ratio = 0.50
+    test_ratio = 0.25
+    val_ratio = 0.25
+    epochs = 10
+    timesteps = 6
+    batch_size = 10
+    prediction_length = 3
     ''' True Parameters '''
-    train_ratio = 0.70
-    test_ratio = 0.15
-    val_ratio = 0.15
-    epochs = 2
-    timesteps = 96*4
-    batch_size = 96*4
-    prediction_length = 96
+    # train_ratio = 0.70
+    # test_ratio = 0.15
+    # val_ratio = 0.15
+    # epochs = 20
+    # timesteps = 96*4
+    # batch_size = 96*4
+    # prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
     total_epochs = epochs
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
-    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
+    # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
     # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
+    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample_energo+meteo.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
     print("Data Loaded!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' optional: Create Model'''
     model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
-    np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
-    np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
-    np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
-    np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
+    # np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
+    # np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
+    # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
+    # np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
     ''' optional: Load '''
     # model = load_model('20e_model(48, 48, 48, 96)_shape(768, 384, 3).h5')
     # print("Model Loaded!")
     ''' optional: Return Training'''
     # history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
+    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
     # batch_train_losses = np.array(history.batch_train_losses)
     # train_losses = np.array(history.train_losses)
     # test_losses = np.array(history.test_losses)
     # val_losses = np.array(history.val_losses)
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
     # np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
     # np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
     # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
