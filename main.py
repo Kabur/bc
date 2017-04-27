@@ -79,7 +79,20 @@ def tag_freedays(row):
 def load_data2(filename, timesteps, prediction_length, train_ratio, test_ratio, val_ratio):
     # df = pd.read_csv(filename, usecols=[0, 3], parse_dates=[0], dayfirst=True, engine='python')
     df = pd.read_csv(filename, usecols=[0, 3, 4, 5, 6, 7, 8, 9], parse_dates=[0], dayfirst=True, engine='python')
+    ''' NaN debugging '''
+    # print(df.isnull().any())
+    # vie_vp_rych = df['vie_vp_rych'].values.astype('float32')
+    # bad_indices = np.where(np.isnan(vie_vp_rych))
+    # print("bad indices")
+    # print(bad_indices)
+    # print("the bad rows:")
+    # print(df.iloc[bad_indices])
+    # sln_trv[np.isnan(sln_trv)] = np.median(sln_trv[~np.isnan(sln_trv)])
+    # print("the bad rows imputed:")
+    # for index in bad_indices:
+    #     print(sln_trv[index])
 
+    ''' convert to float32 '''
     df['SUM_of_MNOZSTVO'] = df['SUM_of_MNOZSTVO'].values.astype('float32')
     df['sln_trv'] = df['sln_trv'].values.astype('float32')
     df['t_pr'] = df['t_pr'].values.astype('float32')
@@ -224,12 +237,12 @@ def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timestep
     print(model.summary())
     # plot_model(model, to_file='model.png')
 
-    # filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\weights-improvement-{epoch:02d}.h5"
-    # checkpoint = ModelCheckpoint(filepath, verbose=1)
+    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\weights-improvement-{epoch:02d}.h5"
+    checkpoint = ModelCheckpoint(filepath, verbose=1)
 
     history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history, checkpoint])
-    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history, checkpoint])
+    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
 
     batch_train_losses = np.array(history.batch_train_losses)
     train_losses = np.array(history.train_losses)
@@ -244,54 +257,55 @@ def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timestep
 if __name__ == '__main__':
     features = 8
     ''' Temp parameters'''
-    train_ratio = 0.50
-    test_ratio = 0.25
-    val_ratio = 0.25
-    epochs = 10
-    timesteps = 6
-    batch_size = 10
-    prediction_length = 3
+    # train_ratio = 0.50
+    # test_ratio = 0.25
+    # val_ratio = 0.25
+    # epochs = 10
+    # timesteps = 6
+    # batch_size = 10
+    # prediction_length = 3
     ''' True Parameters '''
-    # train_ratio = 0.70
-    # test_ratio = 0.15
-    # val_ratio = 0.15
-    # epochs = 20
-    # timesteps = 96*4
-    # batch_size = 96*4
-    # prediction_length = 96
+    train_ratio = 0.70
+    test_ratio = 0.15
+    val_ratio = 0.15
+    epochs = 20
+    timesteps = 96*4
+    batch_size = 96*4
+    prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
-    total_epochs = epochs
+    total_epochs = 80
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
     # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('01_zilina_suma.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
     # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
-    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample_energo+meteo.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
+    dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('05_poprad_energo+meteo_imputed.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
+    # dataset, train_x, train_y, test_x, test_y, val_x, val_y = load_data2('smaller_sample_energo+meteo.csv', timesteps, prediction_length, train_ratio, test_ratio, val_ratio)
     print("Data Loaded!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' optional: Create Model'''
-    model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
+    # model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
     # np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
     # np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
     # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
     # np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
     ''' optional: Load '''
-    # model = load_model('20e_model(48, 48, 48, 96)_shape(768, 384, 3).h5')
-    # print("Model Loaded!")
+    model = load_model('60e_model(48, 48, 48, 48, 96)_shape(384, 384, 8)_drop1_val1_days2_weather1.h5')
+    print("Model Loaded!")
     ''' optional: Return Training'''
-    # history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    # batch_train_losses = np.array(history.batch_train_losses)
-    # train_losses = np.array(history.train_losses)
-    # test_losses = np.array(history.test_losses)
-    # val_losses = np.array(history.val_losses)
-    # np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
-    # np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
-    # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
-    # np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
+    history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
+    batch_train_losses = np.array(history.batch_train_losses)
+    train_losses = np.array(history.train_losses)
+    test_losses = np.array(history.test_losses)
+    val_losses = np.array(history.val_losses)
+    np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
+    np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
+    np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
+    np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
     ''' Save '''
-    model.save('{0}e_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_drop1_val1_days2.h5'.format(total_epochs, batch_size, timesteps, features), True)
+    model.save('{0}e_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_drop1_val1_days2_weather1.h5'.format(total_epochs, batch_size, timesteps, features), True)
     print("Model Saved!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
