@@ -238,13 +238,13 @@ def createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, 
     model.add(LSTM(48))
     model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
-    model.compile(loss='mean_absolute_percentage_error', optimizer='adam')
+    model.compile(loss='mean_squared_error', optimizer='adam')
     print(model.summary())
 
     # filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\{epoch:02d}_checkpoint" + model_name + ".h5"
     # filepath="C:\Dropbox\Bc\Python Projects\\bc_checkpoints\{epoch:02d}_checkpoint" + model_name + ".h5"
-    filepath="C:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
-    checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss')
+    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
+    checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
 
     history = LossHistory(model, batch_size, [], [], val_x, val_y)
     model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, validation_split=0.15,
@@ -315,9 +315,8 @@ if __name__ == '__main__':
     prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
     epochs = 30
-    total_epochs = 30
-    model_name = '{0}e_poprad_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_drop1_val5_days2_weather0_mape'.format(total_epochs, batch_size, timesteps, features)
-    total_epochs = 30
+    total_epochs = 60
+    model_name = '{0}e_poprad_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_drop1_val5_days2'.format(total_epochs, batch_size, timesteps, features)
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
@@ -328,38 +327,26 @@ if __name__ == '__main__':
     ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' optional: Create Model'''
     # model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
-    model, batch_train_losses, train_losses, test_losses, val_losses = createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
+    # model, batch_train_losses, train_losses, test_losses, val_losses = createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
+    ''' optional: Load '''
+    model = load_model('30e_poprad_model(48, 48, 48, 48, 96)_shape(384, 384, 2)_drop1_val5_days2.h5')
+    print("Model Loaded!")
+    ''' optional: Return Training'''
+    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
+    checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
+    history = LossHistory(model, batch_size, [], [], val_x, val_y)
+    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, validation_split=0.15,
+              verbose=2, shuffle=True, callbacks=[history, checkpoint])
+    batch_train_losses = np.array(history.batch_train_losses)
+    train_losses = np.array(history.train_losses)
+    test_losses = np.array(history.test_losses)
+    val_losses = np.array(history.val_losses)
+    ''' Save '''
     np.savetxt('batch_train_losses' + model_name + '.txt', batch_train_losses, delimiter=',')
     np.savetxt('train_losses' + model_name + '.txt', train_losses, delimiter=',')
     np.savetxt('test_losses' + model_name + '.txt', test_losses, delimiter=',')
     np.savetxt('val_losses' + model_name + '.txt', val_losses, delimiter=',')
-    ''' optional: Load '''
-    # model = load_model('20e_poprad_model(48, 48, 48, 48, 96)_shape(384, 384, 2)_drop1_val3_days2.h5')
-    # print("Model Loaded!")
-    # ''' optional: Return Training'''
-    # filepath="C:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
-    # checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss')
-    # history = LossHistory(model, batch_size, [], [], val_x, val_y)
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, validation_split=0.15,
-    #           verbose=2, shuffle=True, callbacks=[history, checkpoint])
-    # model = load_model('20e_model(48, 48, 48, 48, 96)_shape(384, 384, 2)_drop1_val1_days2.h5')
-    # print("Model Loaded!")
-    ''' optional: Return Training'''
-    # this shit is missing something xD
-    # history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
-    # np.savetxt('batch_train_losses' + model_name + '.txt', batch_train_losses, delimiter=',')
-    # np.savetxt('train_losses' + model_name + '.txt', train_losses, delimiter=',')
-    # np.savetxt('test_losses' + model_name + '.txt', test_losses, delimiter=',')
-    # np.savetxt('val_losses' + model_name + '.txt', val_losses, delimiter=',')
-    ''' Save '''
-    model.save(model_name + '.h5', True)
-    # np.savetxt('{0}loss_history.txt'.format(total_epochs), batch_train_losses, delimiter=',')
-    # np.savetxt('{0}train_losses.txt'.format(total_epochs), train_losses, delimiter=',')
-    # np.savetxt('{0}test_losses.txt'.format(total_epochs), test_losses, delimiter=',')
-    # np.savetxt('{0}val_losses.txt'.format(total_epochs), val_losses, delimiter=',')
-    ''' Save '''
     model.save(model_name + '.h5', True)
     print("Model Saved!")
 
@@ -372,7 +359,6 @@ if __name__ == '__main__':
     val_y = scaler.inverse_transform(val_y)
 
     ''' Calculate and print errors '''
-
     mape_per_vector2 = []
     for i in range(len(prediction2)):
         mape_per_vector2.append(calculate_mape(prediction2[i], val_y[i]))
