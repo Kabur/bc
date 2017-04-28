@@ -288,17 +288,18 @@ class LossHistory(keras.callbacks.Callback):
 
 def createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features=1):
     model = Sequential()
-    # model.add(LSTM(100, input_shape=(timesteps, features)))
-    # model.add(Dropout(0.15))
-    model.add(LSTM(100, input_shape=(timesteps, features), return_sequences=True))
+    model.add(LSTM(48, input_shape=(timesteps, features), return_sequences=True))
     model.add(Dropout(0.15))
-    # model.add(LSTM(50, return_sequences=True))
-    # model.add(Dropout(0.15))
-    model.add(LSTM(50))
+    model.add(LSTM(48, return_sequences=True))
+    model.add(Dropout(0.15))
+    model.add(LSTM(48, return_sequences=True))
+    model.add(Dropout(0.15))
+    model.add(LSTM(48))
     model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
     # adagrad = keras.optimizers.Adagrad()
-    model.compile(loss='mean_squared_error', optimizer='adam')
+    sgd = keras.optimizers.SGD(momentum=0.9)
+    model.compile(loss='mean_squared_error', optimizer='sgd')
     print(model.summary())
 
     filepath="results\\bestcheckpoint" + model_name + ".h5"
@@ -339,8 +340,8 @@ if __name__ == '__main__':
     prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
     epochs = 30
-    total_epochs = 30
-    model_name = '{0}model_branch9_lstm3b_shape2_drop1_val5_days2_weather2'.format(total_epochs, batch_size, timesteps, features)
+    total_epochs = 60
+    model_name = '{0}model_branch10_lstm4_shape2_drop1_val5_days2_weather2_sgd'.format(total_epochs, batch_size, timesteps, features)
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
@@ -402,5 +403,14 @@ if __name__ == '__main__':
 
     ''' Plot Results'''  # saving fig to file doesnt work
     plot_losses(train_losses, test_losses, val_losses)
+
+    try:
+        with open('results\\{0}model_and_results.txt'.format(total_epochs), 'w') as file:
+            file.write("prediction_vectors MAPE2: %.2f\n" % mape2)
+            file.write("prediction_vectors Median Error2: %.2f\n" % median2)
+            file.write("prediction_vectors Standard Deviation of Error2: %.2f\n" % standard_deviation2)
+    except Exception as e:
+        print("didnt save model_and_results, derp")
+        print(e)
 
     gc.collect()
