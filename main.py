@@ -380,7 +380,7 @@ if __name__ == '__main__':
     prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
     epochs = 30
-    total_epochs = 30
+    total_epochs = 60
     model_name = '{0}e_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_drop1_val5_days2_weather2'.format(total_epochs, batch_size, timesteps, features)
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
@@ -393,29 +393,29 @@ if __name__ == '__main__':
     ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' optional: Create Model'''
     # model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
-    model, batch_train_losses, train_losses, test_losses, val_losses = createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
-    np.savetxt('loss_history' + model_name + '.txt', batch_train_losses, delimiter=',')
-    np.savetxt('train_losses' + model_name + '.txt', train_losses, delimiter=',')
-    np.savetxt('test_losses' + model_name + '.txt', test_losses, delimiter=',')
-    np.savetxt('val_losses' + model_name + '.txt', val_losses, delimiter=',')
-    ''' optional: Load '''
-    # model = load_model('20e_model(48, 48, 48, 48, 96)_shape(384, 384, 8)_drop1_val4_days2_weather1.h5')
-    # print("Model Loaded!")
-    ''' optional: Return Training'''
-    # filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
-    # checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
-    # history = LossHistory(model, batch_size, [], [], val_x, val_y)
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history, checkpoint])
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, validation_split=0.15,
-    #           verbose=2, shuffle=True, callbacks=[history, checkpoint])
-    # batch_train_losses = np.array(history.batch_train_losses)
-    # train_losses = np.array(history.train_losses)
-    # test_losses = np.array(history.test_losses)
-    # val_losses = np.array(history.val_losses)
+    # model, batch_train_losses, train_losses, test_losses, val_losses = createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
     # np.savetxt('loss_history' + model_name + '.txt', batch_train_losses, delimiter=',')
     # np.savetxt('train_losses' + model_name + '.txt', train_losses, delimiter=',')
     # np.savetxt('test_losses' + model_name + '.txt', test_losses, delimiter=',')
     # np.savetxt('val_losses' + model_name + '.txt', val_losses, delimiter=',')
+    ''' optional: Load '''
+    model = load_model('30e_model(48, 48, 48, 48, 96)_shape(384, 672, 5)_drop1_val5_days2_weather2.h5')
+    print("Model Loaded!")
+    ''' optional: Return Training'''
+    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
+    checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
+    history = LossHistory(model, batch_size, [], [], val_x, val_y)
+    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history, checkpoint])
+    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, validation_split=0.15,
+              verbose=2, shuffle=True, callbacks=[history, checkpoint])
+    batch_train_losses = np.array(history.batch_train_losses)
+    train_losses = np.array(history.train_losses)
+    test_losses = np.array(history.test_losses)
+    val_losses = np.array(history.val_losses)
+    np.savetxt('loss_history' + model_name + '.txt', batch_train_losses, delimiter=',')
+    np.savetxt('train_losses' + model_name + '.txt', train_losses, delimiter=',')
+    np.savetxt('test_losses' + model_name + '.txt', test_losses, delimiter=',')
+    np.savetxt('val_losses' + model_name + '.txt', val_losses, delimiter=',')
     ''' Save '''
     model.save(model_name + '.h5', True)
     print("Model Saved!")
