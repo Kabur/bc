@@ -107,7 +107,8 @@ def load_data3(filename, timesteps, prediction_length, train_ratio, test_ratio, 
     # values = scaler.inverse_transform(df['SUM_of_MNOZSTVO'].values.astype('float32').reshape(-1, 1))
 
     ''' weather2: keep t_pr, vlh_pr, zra_uhrn '''
-    del df['sln_trv']
+    del df['vlh_pr']
+    # del df['sln_trv']
     del df['tlak_pr']
     del df['vie_vp_rych']
 
@@ -303,11 +304,11 @@ def createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, 
     model.add(LSTM(48))
     model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
-    adagrad = keras.optimizers.Adagrad()
+    # adagrad = keras.optimizers.Adagrad()
     model.compile(loss='mean_squared_error', optimizer='adam')
     print(model.summary())
 
-    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
+    filepath="results\\bestcheckpoint" + model_name + ".h5"
     checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
 
     history = LossHistory(model, batch_size, [], [], val_x, val_y)
@@ -315,41 +316,6 @@ def createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, 
               verbose=2, shuffle=True, callbacks=[history, checkpoint])
     # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, validation_split=0.15,
     #           verbose=2, shuffle=True, callbacks=[history])
-
-    batch_train_losses = np.array(history.batch_train_losses)
-    train_losses = np.array(history.train_losses)
-    test_losses = np.array(history.test_losses)
-    val_losses = np.array(history.val_losses)
-
-    print("Finished Training!")
-
-    return model, batch_train_losses, train_losses, test_losses, val_losses
-
-
-def createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features=1):
-    model = Sequential()
-    model.add(LSTM(48, input_shape=(timesteps, features), return_sequences=True))
-    model.add(Dropout(0.15))
-    model.add(LSTM(48, return_sequences=True))
-    model.add(Dropout(0.15))
-    model.add(LSTM(48, return_sequences=True))
-    model.add(Dropout(0.15))
-    # model.add(LSTM(48, return_sequences=True))
-    # model.add(Dropout(0.15))
-    model.add(LSTM(48))
-    model.add(Dropout(0.15))
-    model.add(Dense(prediction_length))
-    model.compile(loss='mean_squared_error', optimizer='adam')
-    print(model.summary())
-    # plot_model(model, to_file='model.png')
-
-    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\weights-improvement-{epoch:02d}.h5"
-    checkpoint = ModelCheckpoint(filepath, verbose=1)
-
-    history = LossHistory(model, batch_size, test_x, test_y, val_x, val_y)
-    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size,
-              verbose=2, shuffle=True, callbacks=[history, checkpoint])
-    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
 
     batch_train_losses = np.array(history.batch_train_losses)
     train_losses = np.array(history.train_losses)
@@ -380,8 +346,8 @@ if __name__ == '__main__':
     prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
     epochs = 30
-    total_epochs = 60
-    model_name = '{0}e_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_drop1_val5_days2_weather2'.format(total_epochs, batch_size, timesteps, features)
+    total_epochs = 30
+    model_name = '{0}model_lstm4_shape2_drop1_val5_days2_weather3'.format(total_epochs, batch_size, timesteps, features)
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
@@ -393,31 +359,27 @@ if __name__ == '__main__':
     ''' ***************************** OPTIONAL SECTION***************************************** '''
     ''' optional: Create Model'''
     # model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
-    # model, batch_train_losses, train_losses, test_losses, val_losses = createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
-    # np.savetxt('loss_history' + model_name + '.txt', batch_train_losses, delimiter=',')
-    # np.savetxt('train_losses' + model_name + '.txt', train_losses, delimiter=',')
-    # np.savetxt('test_losses' + model_name + '.txt', test_losses, delimiter=',')
-    # np.savetxt('val_losses' + model_name + '.txt', val_losses, delimiter=',')
+    model, batch_train_losses, train_losses, test_losses, val_losses = createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
     ''' optional: Load '''
-    model = load_model('30e_model(48, 48, 48, 48, 96)_shape(384, 672, 5)_drop1_val5_days2_weather2.h5')
-    print("Model Loaded!")
-    ''' optional: Return Training'''
-    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
-    checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
-    history = LossHistory(model, batch_size, [], [], val_x, val_y)
+    # model = load_model('30e_model(48, 48, 48, 48, 96)_shape(384, 672, 5)_drop1_val5_days2_weather2.h5')
+    # print("Model Loaded!")
+    # ''' optional: Return Training'''
+    # filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
+    # checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
+    # history = LossHistory(model, batch_size, [], [], val_x, val_y)
     # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history, checkpoint])
-    model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, validation_split=0.15,
-              verbose=2, shuffle=True, callbacks=[history, checkpoint])
-    batch_train_losses = np.array(history.batch_train_losses)
-    train_losses = np.array(history.train_losses)
-    test_losses = np.array(history.test_losses)
-    val_losses = np.array(history.val_losses)
-    np.savetxt('loss_history' + model_name + '.txt', batch_train_losses, delimiter=',')
-    np.savetxt('train_losses' + model_name + '.txt', train_losses, delimiter=',')
-    np.savetxt('test_losses' + model_name + '.txt', test_losses, delimiter=',')
-    np.savetxt('val_losses' + model_name + '.txt', val_losses, delimiter=',')
+    # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, validation_split=0.15,
+    #           verbose=2, shuffle=True, callbacks=[history, checkpoint])
+    # batch_train_losses = np.array(history.batch_train_losses)
+    # train_losses = np.array(history.train_losses)
+    # test_losses = np.array(history.test_losses)
+    # val_losses = np.array(history.val_losses)
     ''' Save '''
-    model.save(model_name + '.h5', True)
+    np.savetxt('results\loss_history' + model_name + '.txt', batch_train_losses, delimiter=',')
+    np.savetxt('results\\train_losses' + model_name + '.txt', train_losses, delimiter=',')
+    np.savetxt('results\\test_losses' + model_name + '.txt', test_losses, delimiter=',')
+    np.savetxt('results\\val_losses' + model_name + '.txt', val_losses, delimiter=',')
+    model.save('results\\' + model_name + '.h5', True)
     print("Model Saved!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
@@ -443,5 +405,14 @@ if __name__ == '__main__':
 
     ''' Plot Results'''  # saving fig to file doesnt work
     plot_losses(train_losses, test_losses, val_losses)
+
+    try:
+        with open('results\\{0}model_and_results.txt'.format(total_epochs), 'w') as file:
+            file.write("prediction_vectors MAPE2: %.2f" % mape2)
+            file.write("prediction_vectors Median Error2: %.2f" % median2)
+            file.write("prediction_vectors Standard Deviation of Error2: %.2f" % standard_deviation2)
+    except Exception as e:
+        print("model_and_results didnt save, welp")
+        print(e)
 
     gc.collect()
