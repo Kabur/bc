@@ -243,7 +243,7 @@ def createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, 
 
     # filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\{epoch:02d}_checkpoint" + model_name + ".h5"
     # filepath="C:\Dropbox\Bc\Python Projects\\bc_checkpoints\{epoch:02d}_checkpoint" + model_name + ".h5"
-    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
+    filepath="results\\bestcheckpoint" + model_name + ".h5"
     checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
 
     history = LossHistory(model, batch_size, [], [], val_x, val_y)
@@ -310,13 +310,13 @@ if __name__ == '__main__':
     train_ratio = 0.70
     test_ratio = 0.15
     val_ratio = 0.15
-    timesteps = 96*4
+    timesteps = 96*7
     batch_size = 96*4
     prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
-    epochs = 30
-    total_epochs = 60
-    model_name = '{0}e_poprad_model(48, 48, 48, 48, 96)_shape({1}, {2}, {3})_drop1_val5_days2'.format(total_epochs, batch_size, timesteps, features)
+    epochs = 20
+    total_epochs = 50
+    model_name = '{0}model_branch6_lstm4_shape2_drop1_val5_days2'.format(total_epochs, batch_size, timesteps, features)
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
     ''' Load Data '''
@@ -329,10 +329,10 @@ if __name__ == '__main__':
     # model, batch_train_losses, train_losses, test_losses, val_losses = createModel(train_x, train_y, test_x, test_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
     # model, batch_train_losses, train_losses, test_losses, val_losses = createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, batch_size, prediction_length, features)
     ''' optional: Load '''
-    model = load_model('30e_poprad_model(48, 48, 48, 48, 96)_shape(384, 384, 2)_drop1_val5_days2.h5')
+    model = load_model('30model_branch6_lstm4_shape2_drop1_val5_days2.h5')
     print("Model Loaded!")
-    ''' optional: Return Training'''
-    filepath="E:\Dropbox\Bc\Python Projects\\bc_checkpoints\\bestcheckpoint" + model_name + ".h5"
+    # ''' optional: Return Training'''
+    filepath="results\\bestcheckpoint" + model_name + ".h5"
     checkpoint = ModelCheckpoint(filepath, verbose=1, monitor='val_loss', save_best_only=True)
     history = LossHistory(model, batch_size, [], [], val_x, val_y)
     # model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=True, callbacks=[history])
@@ -343,11 +343,11 @@ if __name__ == '__main__':
     test_losses = np.array(history.test_losses)
     val_losses = np.array(history.val_losses)
     ''' Save '''
-    np.savetxt('batch_train_losses' + model_name + '.txt', batch_train_losses, delimiter=',')
-    np.savetxt('train_losses' + model_name + '.txt', train_losses, delimiter=',')
-    np.savetxt('test_losses' + model_name + '.txt', test_losses, delimiter=',')
-    np.savetxt('val_losses' + model_name + '.txt', val_losses, delimiter=',')
-    model.save(model_name + '.h5', True)
+    np.savetxt('results\\batch_train_losses' + model_name + '.txt', batch_train_losses, delimiter=',')
+    np.savetxt('results\\train_losses' + model_name + '.txt', train_losses, delimiter=',')
+    np.savetxt('results\\test_losses' + model_name + '.txt', test_losses, delimiter=',')
+    np.savetxt('results\\val_losses' + model_name + '.txt', val_losses, delimiter=',')
+    model.save('results\\' + model_name + '.h5', True)
     print("Model Saved!")
 
     ''' ***************************** OPTIONAL SECTION***************************************** '''
@@ -370,6 +370,14 @@ if __name__ == '__main__':
     print("prediction_vectors MAPE2: %.2f" % mape2)
     print("prediction_vectors Median Error2: %.2f" % median2)
     print("prediction_vectors Standard Deviation of Error2: %.2f" % standard_deviation2)
+    try:
+        with open('results\\{0}model_and_resuklts.txt'.format(total_epochs), 'w') as file:
+            file.write("prediction_vectors MAPE2: %.2f\n" % mape2)
+            file.write("prediction_vectors Median Error2: %.2f\n" % median2)
+            file.write("prediction_vectors Standard Deviation of Error2: %.2f\n" % standard_deviation2)
+    except Exception as e:
+        print("model_and_results didnt save, welp")
+        print(e)
 
     ''' Plot Results'''
     plot_losses(train_losses, test_losses, val_losses)
