@@ -298,7 +298,7 @@ def createModel2(model_name, train_x, train_y, val_x, val_y, epochs, timesteps, 
     model.add(Dropout(0.15))
     model.add(Dense(prediction_length))
     # adagrad = keras.optimizers.Adagrad()
-    sgd = keras.optimizers.SGD(momentum=0.9)
+    sgd = keras.optimizers.SGD(momentum=0.5)
     model.compile(loss='mean_squared_error', optimizer='sgd')
     print(model.summary())
 
@@ -339,8 +339,8 @@ if __name__ == '__main__':
     batch_size = 96*4
     prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
-    epochs = 30
-    total_epochs = 60
+    epochs = 50
+    total_epochs = 50
     model_name = '{0}model_branch10_lstm4_shape2_drop1_val5_days2_weather2_sgd'.format(total_epochs, batch_size, timesteps, features)
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
