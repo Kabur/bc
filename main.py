@@ -339,8 +339,8 @@ if __name__ == '__main__':
     batch_size = 96*4
     prediction_length = 96
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
-    epochs = 50
-    total_epochs = 50
+    epochs = 80
+    total_epochs = 80
     model_name = '{0}model_branch10_lstm4_shape2_drop1_val5_days2_weather2_sgd'.format(total_epochs, batch_size, timesteps, features)
     # !!! UPDATE THIS BEFORE SAVING THE MODEL !!!
 
